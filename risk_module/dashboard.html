@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ZeroPenalty — Risk Zone Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #080a0f;
+    --surface: #0d1117;
+    --surface2: #131920;
+    --border: #1e2d3d;
+    --text: #c9d8e8;
+    --muted: #4a6070;
+    --accent: #00d4ff;
+    --high: #ff2d55;
+    --medium: #ff9f0a;
+    --low: #30d158;
+    --default: #636366;
+    --penalty: #ff375f;
+    --mono: 'Share Tech Mono', monospace;
+    --display: 'Barlow Condensed', sans-serif;
+    --body: 'Barlow', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* Grid background */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 40px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,10,15,0.95);
+    backdrop-filter: blur(10px);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,212,255,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(0,212,255,0); }
+  }
+
+  .logo-icon svg { width: 22px; height: 22px; }
+
+  .logo-text {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 22px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #fff;
+  }
+
+  .logo-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-top: 2px;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--low);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── Main Layout ── */
+  main {
+    position: relative;
+    z-index: 10;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 36px 40px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.5;
+  }
+
+  .card-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-label::before {
+    content: '';
+    width: 20px; height: 1px;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+
+  /* ── Input Section ── */
+  .input-section { grid-column: 1 / -1; }
+
+  .input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 16px;
+    align-items: end;
+  }
+
+  .field label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .field input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .field input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
+  }
+
+  .field input::placeholder { color: var(--muted); }
+
+  .btn-detect {
+    padding: 12px 32px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-detect:hover {
+    background: #33ddff;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0,212,255,0.3);
+  }
+
+  .btn-detect:active { transform: translateY(0); }
+
+  .btn-detect:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-live {
+    background: transparent;
+    border: 2px solid #30d158;
+    color: #30d158;
+    padding: 14px 24px;
+    font-family: var(--display);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    align-self: end;
+  }
+
+  .btn-live:hover {
+    background: rgba(48,209,88,0.12);
+    box-shadow: 0 0 16px rgba(48,209,88,0.3);
+    transform: translateY(-1px);
+  }
+
+  .btn-live.active {
+    background: rgba(48,209,88,0.15);
+    border-color: #ff2d55;
+    color: #ff2d55;
+    box-shadow: 0 0 20px rgba(255,45,85,0.3);
+    animation: live-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes live-pulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(255,45,85,0.3); }
+    50% { box-shadow: 0 0 30px rgba(255,45,85,0.6); }
+  }
+
+  .live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+    animation: blink 1s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+
+  .zone-card { grid-column: 1 / -1; }
+
+  .zone-display {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 28px;
+    align-items: center;
+  }
+
+  .zone-risk-badge {
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid;
+    position: relative;
+    flex-shrink: 0;
+    transition: all 0.5s;
+  }
+
+  .zone-risk-badge::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 1px solid;
+    opacity: 0.3;
+    animation: spin 8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .badge-level {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .badge-icon { font-size: 28px; margin-bottom: 4px; }
+
+  .zone-info { flex: 1; }
+
+  .zone-name {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 30px;
+    letter-spacing: 1px;
+    color: #fff;
+    line-height: 1.1;
+    margin-bottom: 6px;
+    transition: all 0.3s;
+  }
+
+  .zone-desc {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+
+  .zone-tags {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+    border: 1px solid;
+  }
+
+  /* ── Stats Grid ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .stat-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .stat-value {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 36px;
+    line-height: 1;
+    color: #fff;
+    transition: all 0.3s;
+  }
+
+  .stat-unit {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .stat-bar {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 3px;
+    border-radius: 0 3px 3px 0;
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  /* ── Overspeed Alert ── */
+  .overspeed-alert {
+    grid-column: 1 / -1;
+    border-radius: 12px;
+    padding: 24px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    transition: all 0.4s;
+  }
+
+  .overspeed-alert.safe {
+    background: rgba(48,209,88,0.08);
+    border: 1px solid rgba(48,209,88,0.3);
+  }
+
+  .overspeed-alert.danger {
+    background: rgba(255,45,85,0.08);
+    border: 1px solid rgba(255,45,85,0.4);
+    animation: alert-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes alert-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,45,85,0.2); }
+    50% { box-shadow: 0 0 0 12px rgba(255,45,85,0); }
+  }
+
+  .alert-left { display: flex; align-items: center; gap: 16px; }
+
+  .alert-icon {
+    font-size: 36px;
+    animation: none;
+  }
+
+  .danger .alert-icon { animation: shake 0.4s ease-in-out infinite alternate; }
+
+  @keyframes shake {
+    from { transform: rotate(-5deg); }
+    to { transform: rotate(5deg); }
+  }
+
+  .alert-title {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 20px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .alert-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  .penalty-display {
+    text-align: right;
+  }
+
+  .penalty-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .penalty-amount {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 42px;
+    color: var(--penalty);
+    line-height: 1;
+    transition: all 0.3s;
+  }
+
+  .penalty-amount.zero { color: var(--low); }
+
+  /* ── Zone List ── */
+  .zones-list { grid-column: 1 / -1; }
+
+  .zones-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .zones-table th {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .zones-table td {
+    padding: 12px 14px;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(30,45,61,0.5);
+    transition: background 0.2s;
+  }
+
+  .zones-table tr:hover td { background: var(--surface2); }
+  .zones-table tr:last-child td { border-bottom: none; }
+
+  .risk-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+
+  .risk-chip.HIGH { background: rgba(255,45,85,0.15); color: var(--high); }
+  .risk-chip.MEDIUM { background: rgba(255,159,10,0.15); color: var(--medium); }
+  .risk-chip.LOW { background: rgba(48,209,88,0.15); color: var(--low); }
+
+  .risk-chip::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .zone-row-active td {
+    background: rgba(0,212,255,0.05) !important;
+    border-left: 2px solid var(--accent);
+  }
+
+  /* ── Risk colors ── */
+  .risk-HIGH { color: var(--high); border-color: var(--high); }
+  .risk-MEDIUM { color: var(--medium); border-color: var(--medium); }
+  .risk-LOW { color: var(--low); border-color: var(--low); }
+  .risk-DEFAULT { color: var(--default); border-color: var(--default); }
+
+  .glow-HIGH { text-shadow: 0 0 20px rgba(255,45,85,0.5); }
+  .glow-MEDIUM { text-shadow: 0 0 20px rgba(255,159,10,0.5); }
+  .glow-LOW { text-shadow: 0 0 20px rgba(48,209,88,0.5); }
+
+  /* ── Spinner ── */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+
+  /* ── Quick test buttons ── */
+  .quick-tests {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .quick-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+  }
+
+  .quick-btn {
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .quick-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,212,255,0.05);
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state .big-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state p { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    main { grid-template-columns: 1fr; padding: 20px; }
+    .input-grid { grid-template-columns: 1fr 1fr; }
+    .btn-detect { grid-column: 1 / -1; }
+    .btn-live { grid-column: 1 / -1; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .zone-display { grid-template-columns: 1fr; text-align: center; }
+    .zone-risk-badge { margin: 0 auto; }
+    .zone-tags { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 2 19 22 19"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">ZeroPenalty</div>
+      <div class="logo-sub">Risk Zone Intelligence</div>
+    </div>
+  </div>
+  <div class="status-pill">
+    <span class="status-dot"></span>
+    SYSTEM OPERATIONAL
+  </div>
+</header>
+
+<main>
+
+  <!-- Input Section -->
+  <div class="card input-section">
+    <div class="card-label">GPS + Speed Input</div>
+    <div class="input-grid">
+      <div class="field">
+        <label>Latitude</label>
+        <input id="lat" type="number" step="0.0001" placeholder="18.5284" value="18.5284"/>
+      </div>
+      <div class="field">
+        <label>Longitude</label>
+        <input id="lng" type="number" step="0.0001" placeholder="73.8742" value="73.8742"/>
+      </div>
+      <div class="field">
+        <label>Speed (km/h)</label>
+        <input id="speed" type="number" min="0" max="500" placeholder="35" value="35"/>
+      </div>
+      <button class="btn-detect" id="detectBtn" onclick="detect()">
+        Detect Zone
+      </button>
+      <button class="btn-live" id="liveBtn" onclick="toggleLive()">
+        📡 LIVE
+      </button>
+    </div>
+    <div id="liveStatus" style="display:none; margin-top:10px; font-family:var(--mono); font-size:12px; color:var(--accent); display:flex; align-items:center; gap:8px;">
+      <span class="live-dot"></span>
+      <span id="liveStatusText">Waiting for GPS signal...</span>
+    </div>
+    <div id="gpsSpeedBadge" style="display:none; margin-top:8px; font-family:var(--mono); font-size:11px; color:var(--muted);">
+      🛰️ GPS Speed: <span id="gpsSpeedVal">—</span> km/h &nbsp;|&nbsp; 📍 Accuracy: <span id="gpsAccVal">—</span>m
+    </div>
+  </div>
+
+  <!-- Quick Test Buttons -->
+  <div class="quick-tests">
+    <span class="quick-label">QUICK TEST →</span>
+    <button class="quick-btn" onclick="loadPreset(18.5284, 73.8742, 35, 'Railway Station (overspeed)')">🚂 Railway Station</button>
+    <button class="quick-btn" onclick="loadPreset(18.5185, 73.8416, 12, 'School Zone (safe)')">🏫 School Zone</button>
+    <button class="quick-btn" onclick="loadPreset(18.5362, 73.8931, 50, 'Koregaon Park')">🌙 Koregaon Park</button>
+    <button class="quick-btn" onclick="loadPreset(18.4534, 73.8674, 40, 'Katraj Ghat')">⛰️ Katraj Ghat</button>
+    <button class="quick-btn" onclick="loadPreset(17.0000, 72.0000, 45, 'Open Road')">🛣️ Open Road</button>
+  </div>
+
+  <!-- Time Risk Banner -->
+  <div id="timeRiskBanner" style="grid-column:1/-1; display:none; background:rgba(13,17,23,0.95); border:1px solid var(--border); border-radius:10px; padding:12px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <span style="font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:1px;">⏱ TIME RISK</span>
+    <span id="timeRiskLabels" style="font-family:var(--mono); font-size:12px; color:var(--accent);"></span>
+    <span id="timeRiskClock" style="margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--muted);"></span>
+  </div>
+
+  <!-- Dynamic Mode Toggle -->
+  <div style="grid-column:1/-1; display:flex; align-items:center; gap:14px; padding:10px 0;">
+    <label style="font-family:var(--mono); font-size:12px; color:var(--muted); letter-spacing:1px; cursor:pointer; display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="dynamicToggle" checked onchange="onDynamicToggle()" style="accent-color:var(--accent); width:16px; height:16px; cursor:pointer;">
+      🌐 DYNAMIC MODE &nbsp;<span style="color:var(--accent);" id="dynamicModeLabel">(OSM + Accidents + Time)</span>
+    </label>
+    <span id="dataSourceBadge" style="font-family:var(--mono); font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:4px; padding:2px 8px;"></span>
+  </div>
+
+  <!-- Zone Detection Result -->
+  <div class="card zone-card" id="zoneCard">
+    <div class="card-label">Detected Zone</div>
+    <div class="empty-state">
+      <div class="big-icon">📍</div>
+      <p>Enter GPS coordinates and press DETECT ZONE</p>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid" id="statsGrid" style="display:none; grid-column: 1/-1;">
+    <div class="stat-block">
+      <div class="stat-label">Current Speed</div>
+      <div class="stat-value" id="statSpeed">—</div>
+      <div class="stat-unit">km/h</div>
+      <div class="stat-bar" id="barSpeed" style="background: var(--accent); width: 0%;"></div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-label">Speed Limit</div>
+      <div class="stat-value" id="statLimit">—</div>
+      <div class="stat-unit">km/h</div>
+      <div class="stat-bar" id="barLimit" style="background: var(--low); width: 0%;"></div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-label">Penalty Multiplier</div>
+      <div class="stat-value" id="statMulti">—</div>
+      <div class="stat-unit">× base fine</div>
+      <div class="stat-bar" id="barMulti" style="background: var(--medium); width: 0%;"></div>
+    </div>
+  </div>
+
+  <!-- Overspeed Alert -->
+  <div id="alertBox" style="display:none; grid-column: 1/-1;">
+  </div>
+
+  <!-- All Zones Reference Table -->
+  <div class="card zones-list">
+    <div class="card-label">All Defined Risk Zones — Pune, India</div>
+    <table class="zones-table">
+      <thead>
+        <tr>
+          <th>Zone Name</th>
+          <th>Risk Level</th>
+          <th>Speed Limit</th>
+          <th>Penalty ×</th>
+          <th>Alert</th>
+        </tr>
+      </thead>
+      <tbody id="zonesTableBody">
+        <tr><td colspan="5" style="text-align:center; color: var(--muted); font-family: var(--mono); font-size:12px; padding:20px;">Loading zones...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<script>
+  // ── Zone Data (mirrors zones.json) ──────────────────────────────
+  const ZONES = [
+    { id:"zone_001", name:"Pune Railway Station Zone", risk_level:"HIGH", speed_limit:20, penalty_multiplier:3.0, alert_strength:"STRONG", latitude:18.5284, longitude:73.8742, radius:300, description:"Dense pedestrian and vehicle traffic near the main railway station" },
+    { id:"zone_002", name:"FC Road School Zone", risk_level:"HIGH", speed_limit:15, penalty_multiplier:3.5, alert_strength:"STRONG", latitude:18.5185, longitude:73.8416, radius:250, description:"Active school zone on Fergusson College Road — children crossing frequently" },
+    { id:"zone_003", name:"Laxmi Road Market Zone", risk_level:"HIGH", speed_limit:20, penalty_multiplier:2.5, alert_strength:"STRONG", latitude:18.5162, longitude:73.8570, radius:400, description:"Busy commercial market area with high pedestrian and two-wheeler density" },
+    { id:"zone_004", name:"Shivajinagar Hospital Zone", risk_level:"HIGH", speed_limit:20, penalty_multiplier:3.0, alert_strength:"STRONG", latitude:18.5308, longitude:73.8474, radius:200, description:"Hospital zone — noise and speed restrictions strictly enforced" },
+    { id:"zone_005", name:"Hinjewadi IT Park Zone", risk_level:"MEDIUM", speed_limit:40, penalty_multiplier:1.8, alert_strength:"STRONG", latitude:18.5912, longitude:73.7389, radius:600, description:"IT corridor with peak-hour office traffic" },
+    { id:"zone_006", name:"Viman Nagar Residential Zone", risk_level:"MEDIUM", speed_limit:30, penalty_multiplier:1.5, alert_strength:"NORMAL", latitude:18.5679, longitude:73.9143, radius:500, description:"Residential zone with children, elderly, and internal colony traffic" },
+    { id:"zone_007", name:"Katraj Ghat Blind Curve Zone", risk_level:"HIGH", speed_limit:25, penalty_multiplier:2.8, alert_strength:"STRONG", latitude:18.4534, longitude:73.8674, radius:350, description:"Sharp curves and accident-prone ghat section" },
+    { id:"zone_008", name:"Koregaon Park Nightlife Zone", risk_level:"MEDIUM", speed_limit:35, penalty_multiplier:2.0, alert_strength:"STRONG", latitude:18.5362, longitude:73.8931, radius:450, description:"High pedestrian activity at night — elevated DUI and speed risk" },
+    { id:"zone_009", name:"Hadapsar Industrial Zone", risk_level:"LOW", speed_limit:50, penalty_multiplier:1.2, alert_strength:"NORMAL", latitude:18.5089, longitude:73.9259, radius:700, description:"Industrial area with moderate heavy-vehicle movement" },
+    { id:"zone_010", name:"Baner Road Construction Zone", risk_level:"HIGH", speed_limit:20, penalty_multiplier:2.5, alert_strength:"STRONG", latitude:18.5590, longitude:73.7868, radius:300, description:"Active construction zone — uneven road surface and reduced lane width" },
+  ];
+
+  const DEFAULT_ZONE = { id:"zone_default", name:"Open Road (Default Zone)", risk_level:"LOW", speed_limit:60, penalty_multiplier:1.0, alert_strength:"NORMAL", description:"No special risk zone detected. Standard road rules apply." };
+  const BASE_PENALTY = 500;
+
+  // ── Haversine distance (meters) ─────────────────────────────────
+  function haversine(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  // ── Zone Detection ───────────────────────────────────────────────
+  function detectZone(lat, lng) {
+    let closest = null, minDist = Infinity;
+    for (const z of ZONES) {
+      const d = haversine(lat, lng, z.latitude, z.longitude);
+      if (d <= z.radius && d < minDist) { minDist = d; closest = z; }
+    }
+    return closest || DEFAULT_ZONE;
+  }
+
+  // ── Risk Colors ──────────────────────────────────────────────────
+  const RISK_COLOR = { HIGH: '#ff2d55', MEDIUM: '#ff9f0a', LOW: '#30d158', DEFAULT: '#636366' };
+  const RISK_ICON  = { HIGH: '⚠️', MEDIUM: '🔶', LOW: '✅', DEFAULT: '🛣️' };
+  const ALERT_ICON = { HIGH: '🚨', MEDIUM: '⚡', LOW: '✅' };
+
+  // ── Dynamic Mode Toggle ──────────────────────────────────────────
+  let dynamicMode = true;
+
+  function onDynamicToggle() {
+    dynamicMode = document.getElementById('dynamicToggle').checked;
+    document.getElementById('dynamicModeLabel').textContent = dynamicMode
+      ? '(OSM + Accidents + Time)'
+      : '(Static zones.json only)';
+    document.getElementById('dynamicModeLabel').style.color = dynamicMode
+      ? 'var(--accent)' : 'var(--muted)';
+  }
+
+  // ── Time Risk Banner (Client-side, updates every minute) ─────────
+  function updateTimeRiskBanner() {
+    const now = new Date();
+    const hour = now.getHours();
+    const min = now.getMinutes();
+    const weekday = now.getDay(); // 0=Sun
+    const isWeekday = weekday >= 1 && weekday <= 5;
+    const hhmm = h => now.getHours() === Math.floor(h) && now.getMinutes() >= (h % 1) * 60;
+
+    const t = hour + min / 60;
+    const labels = [];
+
+    if (t >= 22 || t < 5)          labels.push('🌙 Night Hours — High Risk');
+    if (t >= 20 && t < 22)         labels.push('🌆 Late Evening');
+    if (isWeekday && ((t >= 8 && t <= 10) || (t >= 17 && t <= 19.5))) labels.push('🚦 Rush Hour');
+    if (isWeekday && ((t >= 7.5 && t <= 9) || (t >= 13 && t <= 14.5))) labels.push('🏫 School Hours');
+
+    const banner = document.getElementById('timeRiskBanner');
+    const labelsEl = document.getElementById('timeRiskLabels');
+    const clockEl = document.getElementById('timeRiskClock');
+
+    const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    clockEl.textContent = `🕐 ${timeStr}`;
+
+    if (labels.length > 0) {
+      labelsEl.textContent = labels.join('  ·  ');
+      labelsEl.style.color = labels.some(l => l.includes('Night')) ? 'var(--high)' : 'var(--medium)';
+      banner.style.borderColor = labels.some(l => l.includes('Night')) ? 'var(--high)' : 'var(--medium)';
+    } else {
+      labelsEl.textContent = '✅ Normal Hours — Standard Risk';
+      labelsEl.style.color = 'var(--low)';
+      banner.style.borderColor = 'var(--border)';
+    }
+  }
+
+  updateTimeRiskBanner();
+  setInterval(updateTimeRiskBanner, 60000);
+
+  // ── Live GPS Tracking ────────────────────────────────────────────
+  let liveWatchId = null;
+  let isLive = false;
+  let lastLivePosition = null;
+  const LIVE_MIN_DISTANCE_M = 10; // Trigger update every 10 meters
+
+  function haversineMeters(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function toggleLive() {
+    if (!navigator.geolocation) {
+      alert('❌ Geolocation is not supported by your browser.');
+      return;
+    }
+    if (!isLive) {
+      startLive();
+    } else {
+      stopLive();
+    }
+  }
+
+  function startLive() {
+    isLive = true;
+    lastLivePosition = null;
+    const liveBtn = document.getElementById('liveBtn');
+    const liveStatus = document.getElementById('liveStatus');
+    const gpsSpeedBadge = document.getElementById('gpsSpeedBadge');
+
+    liveBtn.classList.add('active');
+    liveBtn.innerHTML = '🛑 STOP LIVE';
+    liveStatus.style.display = 'flex';
+    gpsSpeedBadge.style.display = 'block';
+    document.getElementById('liveStatusText').textContent = 'Acquiring GPS signal...';
+
+    liveWatchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, speed: rawSpeed, accuracy } = position.coords;
+
+        // GPS speed: m/s → km/h, clamp to 0–500
+        const gpsSpeedKmh = rawSpeed != null
+          ? Math.min(Math.max(rawSpeed * 3.6, 0), 500)
+          : null;
+
+        // Update GPS speed badge
+        document.getElementById('gpsSpeedVal').textContent =
+          gpsSpeedKmh != null ? gpsSpeedKmh.toFixed(1) : '—';
+        document.getElementById('gpsAccVal').textContent =
+          accuracy != null ? accuracy.toFixed(0) : '—';
+
+        // Auto-update speed input from GPS (if GPS speed available)
+        if (gpsSpeedKmh != null) {
+          document.getElementById('speed').value = gpsSpeedKmh.toFixed(1);
+        }
+
+        // Update lat/lng inputs
+        document.getElementById('lat').value = latitude.toFixed(6);
+        document.getElementById('lng').value = longitude.toFixed(6);
+
+        // Check minimum distance moved before triggering zone update
+        let shouldUpdate = true;
+        if (lastLivePosition) {
+          const dist = haversineMeters(
+            lastLivePosition.lat, lastLivePosition.lng, latitude, longitude
+          );
+          shouldUpdate = dist >= LIVE_MIN_DISTANCE_M;
+        }
+
+        if (shouldUpdate) {
+          lastLivePosition = { lat: latitude, lng: longitude };
+          const speedForDetect = gpsSpeedKmh != null
+            ? gpsSpeedKmh
+            : parseFloat(document.getElementById('speed').value) || 0;
+
+          document.getElementById('liveStatusText').textContent =
+            `Live · GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} · ${speedForDetect.toFixed(1)} km/h`;
+
+          // Trigger zone detection with GPS coords + GPS speed
+          runDetect(latitude, longitude, speedForDetect);
+        } else {
+          document.getElementById('liveStatusText').textContent =
+            `Tracking · Moved < ${LIVE_MIN_DISTANCE_M}m · Waiting for movement...`;
+        }
+      },
+      (err) => {
+        console.error('GPS error:', err);
+        document.getElementById('liveStatusText').textContent =
+          `⚠️ GPS Error: ${err.message}`;
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 10000
+      }
+    );
+  }
+
+  function stopLive() {
+    isLive = false;
+    if (liveWatchId !== null) {
+      navigator.geolocation.clearWatch(liveWatchId);
+      liveWatchId = null;
+    }
+    const liveBtn = document.getElementById('liveBtn');
+    liveBtn.classList.remove('active');
+    liveBtn.innerHTML = '📡 LIVE';
+    document.getElementById('liveStatus').style.display = 'none';
+    document.getElementById('gpsSpeedBadge').style.display = 'none';
+  }
+
+  // ── Core detect logic (shared by manual + live) ──────────────────
+  // ── Render zone result (shared UI renderer) ─────────────────────
+  function renderZoneResult(zone, speed, btn) {
+    const overspeed = speed > zone.speed_limit_kmh;
+    const penalty   = overspeed ? Math.round(BASE_PENALTY * zone.penalty_multiplier) : 0;
+    const risk  = zone.risk_level;
+    const color = RISK_COLOR[risk] || RISK_COLOR.DEFAULT;
+
+    // Time tags from API response
+    const timeLabels = (zone.time_factors && zone.time_factors.labels) || [];
+    const timeTags = timeLabels.map(l =>
+      `<span class="tag" style="border-color:var(--medium); color:var(--medium);">${l}</span>`
+    ).join('');
+
+    // Source tag
+    const isDynamic = zone.is_dynamic;
+    const sourceTag = isDynamic
+      ? `<span class="tag" style="border-color:var(--accent); color:var(--accent);">🌐 DYNAMIC</span>`
+      : `<span class="tag" style="border-color:var(--muted); color:var(--muted);">📁 STATIC</span>`;
+
+    // Road type tag
+    const roadTag = zone.road_type
+      ? `<span class="tag" style="border-color:var(--border); color:var(--muted);">🛣️ ${zone.road_type}</span>`
+      : '';
+
+    // Accident hotspot tag
+    const hotspotTag = zone.accident_hotspot
+      ? `<span class="tag" style="border-color:var(--high); color:var(--high);">⚠️ ACCIDENT HOTSPOT</span>`
+      : '';
+
+    // Data source badge
+    document.getElementById('dataSourceBadge').textContent =
+      isDynamic ? `🌐 OSM (${zone.data_source})` : '📁 Static zones.json';
+
+    // Zone card
+    document.getElementById('zoneCard').innerHTML = `
+      <div class="card-label">Detected Zone ${isLive ? '<span style="color:var(--low); font-size:11px;">● LIVE</span>' : ''}</div>
+      <div class="zone-display">
+        <div class="zone-risk-badge risk-${risk}" style="border-color:${color}; color:${color};">
+          <div class="badge-icon">${RISK_ICON[risk] || '📍'}</div>
+          <div class="badge-level">${risk}</div>
+        </div>
+        <div class="zone-info">
+          <div class="zone-name glow-${risk}" style="color:${color};">${zone.zone_name}</div>
+          <div class="zone-desc">${zone.description}</div>
+          <div class="zone-tags">
+            <span class="tag risk-${risk}" style="border-color:${color}; color:${color};">${risk} RISK</span>
+            <span class="tag" style="border-color:var(--border); color:var(--muted);">🔔 ${zone.alert_strength} ALERT</span>
+            <span class="tag" style="border-color:var(--border); color:var(--muted);">⚡ ${zone.penalty_multiplier}× MULTIPLIER</span>
+            ${zone.is_default_zone ? '<span class="tag" style="border-color:var(--muted); color:var(--muted);">DEFAULT ZONE</span>' : ''}
+            ${sourceTag}${roadTag}${hotspotTag}${timeTags}
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Stats
+    document.getElementById('statsGrid').style.display = 'grid';
+    document.getElementById('statSpeed').textContent = speed.toFixed(1);
+    document.getElementById('statLimit').textContent  = zone.speed_limit_kmh;
+    document.getElementById('statMulti').textContent  = zone.penalty_multiplier + '×';
+
+    const speedPct = Math.min((speed / 120) * 100, 100);
+    const limitPct = Math.min((zone.speed_limit_kmh / 120) * 100, 100);
+    const multiPct = Math.min((zone.penalty_multiplier / 4) * 100, 100);
+    document.getElementById('barSpeed').style.width      = speedPct + '%';
+    document.getElementById('barSpeed').style.background = overspeed ? 'var(--high)' : 'var(--accent)';
+    document.getElementById('barLimit').style.width      = limitPct + '%';
+    document.getElementById('barMulti').style.width      = multiPct + '%';
+
+    // Alert box
+    const alertBox = document.getElementById('alertBox');
+    alertBox.style.display = 'block';
+    if (overspeed) {
+      alertBox.innerHTML = `
+        <div class="overspeed-alert danger">
+          <div class="alert-left">
+            <div class="alert-icon">🚨</div>
+            <div>
+              <div class="alert-title" style="color:var(--high);">OVERSPEED DETECTED</div>
+              <div class="alert-sub">Going ${speed.toFixed(1)} km/h in a ${zone.speed_limit_kmh} km/h zone — ${(speed - zone.speed_limit_kmh).toFixed(1)} km/h over the limit</div>
+            </div>
+          </div>
+          <div class="penalty-display">
+            <div class="penalty-label">Fine Applicable</div>
+            <div class="penalty-amount">₹${penalty.toLocaleString()}</div>
+          </div>
+        </div>`;
+    } else {
+      alertBox.innerHTML = `
+        <div class="overspeed-alert safe">
+          <div class="alert-left">
+            <div class="alert-icon">✅</div>
+            <div>
+              <div class="alert-title" style="color:var(--low);">WITHIN SPEED LIMIT</div>
+              <div class="alert-sub">Going ${speed.toFixed(1)} km/h — ${(zone.speed_limit_kmh - speed).toFixed(1)} km/h below the limit. Drive safe!</div>
+            </div>
+          </div>
+          <div class="penalty-display">
+            <div class="penalty-label">Fine Applicable</div>
+            <div class="penalty-amount zero">₹0</div>
+          </div>
+        </div>`;
+    }
+
+    // Highlight table row
+    document.querySelectorAll('.zones-table tbody tr').forEach(tr => {
+      tr.classList.toggle('zone-row-active', tr.dataset.id === zone.zone_id);
+    });
+
+    if (btn) {
+      btn.disabled = false;
+      if (!isLive) btn.innerHTML = 'Detect Zone';
+    }
+  }
+
+  // ── API Call → Flask /zone ────────────────────────────────────────
+  async function runDetect(lat, lng, speed) {
+    const btn = document.getElementById('detectBtn');
+    btn.disabled = true;
+    if (!isLive) btn.innerHTML = '<span class="spinner"></span>Scanning...';
+
+    const useDynamic = document.getElementById('dynamicToggle').checked;
+    const url = `/zone?lat=${lat}&lng=${lng}&speed=${speed}&dynamic=${useDynamic}`;
+
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`Server error: ${resp.status}`);
+      const json = await resp.json();
+
+      if (json.status !== 'success') throw new Error(json.message || 'Unknown error');
+
+      renderZoneResult(json.data, parseFloat(speed), btn);
+
+    } catch (err) {
+      // API failed → fallback to client-side static detection
+      console.warn('API call failed, using client-side fallback:', err.message);
+      document.getElementById('dataSourceBadge').textContent = '⚠️ Offline Fallback';
+
+      const zone = detectZone(lat, lng); // client-side zones.json
+      // Convert to API response format
+      const fakeApiZone = {
+        zone_id: zone.id,
+        zone_name: zone.name,
+        risk_level: zone.risk_level,
+        description: zone.description,
+        speed_limit_kmh: zone.speed_limit,
+        alert_strength: zone.alert_strength,
+        penalty_multiplier: zone.penalty_multiplier,
+        is_default_zone: zone.id === 'zone_default',
+        is_dynamic: false,
+        road_type: null,
+        accident_hotspot: false,
+        data_source: 'offline_fallback',
+        time_factors: { labels: [] }
+      };
+      renderZoneResult(fakeApiZone, parseFloat(speed), btn);
+    }
+  }
+
+  // ── Manual Detect (button click) ─────────────────────────────────
+  function detect() {
+    const lat   = parseFloat(document.getElementById('lat').value);
+    const lng   = parseFloat(document.getElementById('lng').value);
+    const speed = parseFloat(document.getElementById('speed').value);
+    if (isNaN(lat) || isNaN(lng) || isNaN(speed)) { alert('Please enter valid numbers for all fields.'); return; }
+    runDetect(lat, lng, speed);
+  }
+
+  // ── Load preset ──────────────────────────────────────────────────
+  function loadPreset(lat, lng, speed, label) {
+    document.getElementById('lat').value = lat;
+    document.getElementById('lng').value = lng;
+    document.getElementById('speed').value = speed;
+    detect();
+  }
+
+  // ── Build zones table ────────────────────────────────────────────
+  function buildTable() {
+    const tbody = document.getElementById('zonesTableBody');
+    tbody.innerHTML = ZONES.map(z => `
+      <tr data-id="${z.id}">
+        <td style="font-weight:500; color:#dde;">${z.name}</td>
+        <td><span class="risk-chip ${z.risk_level}">${z.risk_level}</span></td>
+        <td><span style="font-family:var(--mono); color:var(--accent);">${z.speed_limit}</span> km/h</td>
+        <td><span style="font-family:var(--mono); color:var(--medium);">${z.penalty_multiplier}×</span></td>
+        <td><span style="font-family:var(--mono); font-size:11px; color:${z.alert_strength==='STRONG'?'var(--high)':'var(--muted)'};">${z.alert_strength}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────
+  buildTable();
+</script>
+</body>
+</html>

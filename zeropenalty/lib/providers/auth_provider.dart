@@ -36,27 +36,26 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await _authService.signUp(email: email, password: password);
-      // Display name update is non-critical — don't fail signup if this errors
-      try {
-        await _authService.updateDisplayName(name);
-      } catch (_) {
-        // Silently ignore display name update failure
-      }
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _getErrorMessage(e.code);
-      _isLoading = false;
-      notifyListeners();
-      return false;
     } catch (e) {
       debugPrint('SignUp error: $e');
-      _errorMessage = 'An unexpected error occurred. Please try again.';
-      _isLoading = false;
-      notifyListeners();
-      return false;
+      // Even if an exception was thrown, check if user was actually created
+      if (_authService.currentUser == null) {
+        _errorMessage = _mapError(e);
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
     }
+
+    // If we reach here, user is created — try setting display name (non-critical)
+    try {
+      await _authService.updateDisplayName(name);
+    } catch (_) {}
+
+    _user = _authService.currentUser;
+    _isLoading = false;
+    notifyListeners();
+    return true;
   }
 
   /// Sign in
@@ -70,21 +69,21 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await _authService.signIn(email: email, password: password);
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _getErrorMessage(e.code);
-      _isLoading = false;
-      notifyListeners();
-      return false;
     } catch (e) {
       debugPrint('SignIn error: $e');
-      _errorMessage = 'An unexpected error occurred. Please try again.';
-      _isLoading = false;
-      notifyListeners();
-      return false;
+      // Even if an exception was thrown, check if user is actually signed in
+      if (_authService.currentUser == null) {
+        _errorMessage = _mapError(e);
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
     }
+
+    _user = _authService.currentUser;
+    _isLoading = false;
+    notifyListeners();
+    return true;
   }
 
   /// Sign out
@@ -96,6 +95,19 @@ class AuthProvider extends ChangeNotifier {
   void clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  /// Map any exception to a user-friendly message
+  String _mapError(Object e) {
+    String code = '';
+    if (e is FirebaseAuthException) {
+      code = e.code;
+    } else if (e is FirebaseException) {
+      code = e.code;
+    } else {
+      return e.toString();
+    }
+    return _getErrorMessage(code);
   }
 
   /// Human-readable error messages
@@ -117,8 +129,12 @@ class AuthProvider extends ChangeNotifier {
         return 'Too many attempts. Please try again later.';
       case 'invalid-credential':
         return 'Invalid email or password. Please try again.';
+      case 'network-request-failed':
+        return 'Network error. Please check your internet connection.';
+      case 'operation-not-allowed':
+        return 'Email/password sign-in is not enabled.';
       default:
-        return 'Authentication failed. Please try again.';
+        return 'Authentication failed ($code). Please try again.';
     }
   }
 }
