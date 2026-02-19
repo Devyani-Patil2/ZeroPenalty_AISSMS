@@ -23,7 +23,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       body: SafeArea(
         child: Consumer<HistoryProvider>(
           builder: (context, history, _) {
@@ -32,10 +32,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Trip History',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.textPrimary,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
@@ -62,12 +62,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
         height: 200,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: context.cardBg,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Text(
+        child: Text(
           'No trip data yet',
-          style: TextStyle(color: AppColors.textMuted),
+          style: TextStyle(color: context.textMuted),
         ),
       );
     }
@@ -75,17 +75,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: context.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Score Trend',
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.textSecondary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -100,7 +100,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   drawVerticalLine: false,
                   horizontalInterval: 25,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: AppColors.cardBorder,
+                    color: context.borderColor,
                     strokeWidth: 1,
                   ),
                 ),
@@ -112,7 +112,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       reservedSize: 32,
                       getTitlesWidget: (value, meta) => Text(
                         value.toInt().toString(),
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                        style:
+                            TextStyle(color: context.textMuted, fontSize: 10),
                       ),
                     ),
                   ),
@@ -121,12 +122,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       showTitles: true,
                       getTitlesWidget: (value, meta) => Text(
                         'T${value.toInt() + 1}',
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+                        style:
+                            TextStyle(color: context.textMuted, fontSize: 10),
                       ),
                     ),
                   ),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(show: false),
                 minY: 0,
@@ -143,7 +147,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     barWidth: 3,
                     dotData: FlDotData(
                       show: true,
-                      getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+                      getDotPainter: (spot, percent, bar, index) =>
+                          FlDotCirclePainter(
                         radius: 5,
                         color: AppColors.scoreColor(spot.y),
                         strokeWidth: 2,
@@ -194,9 +199,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: context.cardBg,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.cardBorder),
+          border: Border.all(color: context.borderColor),
         ),
         child: Column(
           children: [
@@ -211,7 +216,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+              style: TextStyle(color: context.textMuted, fontSize: 12),
             ),
           ],
         ),
@@ -221,12 +226,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _buildTripList(HistoryProvider history) {
     if (history.trips.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(30),
+          padding: const EdgeInsets.all(30),
           child: Text(
             'Complete your first trip to see history',
-            style: TextStyle(color: AppColors.textMuted),
+            style: TextStyle(color: context.textMuted),
           ),
         ),
       );
@@ -235,10 +240,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'All Trips',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: context.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -250,9 +255,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: context.surfaceBg,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.cardBorder.withOpacity(0.5)),
+              border: Border.all(color: context.borderColor.withOpacity(0.5)),
             ),
             child: Row(
               children: [
@@ -281,15 +286,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     children: [
                       Text(
                         trip.formattedDuration,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: context.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         '${trip.distanceKm.toStringAsFixed(1)} km • ${trip.overspeedCount + trip.harshBrakeCount + trip.sharpTurnCount + trip.rashAccelCount} events',
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        style:
+                            TextStyle(color: context.textMuted, fontSize: 12),
                       ),
                     ],
                   ),
@@ -305,9 +311,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const Text(
+                    Text(
                       'pts',
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                      style: TextStyle(color: context.textMuted, fontSize: 11),
                     ),
                   ],
                 ),

@@ -9,7 +9,7 @@ class RewardsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -19,20 +19,20 @@ class RewardsScreen extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Rewards',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.textPrimary,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 20),
-                  _buildTierCard(p.tier, p.lifetimeAvgScore),
+                  _buildTierCard(context, p.tier, p.lifetimeAvgScore),
                   const SizedBox(height: 20),
-                  _buildPointsCard(p.totalPoints),
+                  _buildPointsCard(context, p.totalPoints),
                   const SizedBox(height: 24),
-                  _buildRedemptionSection(),
+                  _buildRedemptionSection(context),
                 ],
               );
             },
@@ -42,7 +42,7 @@ class RewardsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTierCard(String tier, double avgScore) {
+  Widget _buildTierCard(BuildContext context, String tier, double avgScore) {
     Color tierColor;
     IconData tierIcon;
     String tierDesc;
@@ -58,7 +58,8 @@ class RewardsScreen extends StatelessWidget {
       case 'Improving':
         tierColor = AppColors.warning;
         tierIcon = Icons.trending_up;
-        tierDesc = 'You\'re getting better! Score avg 80+ to become a Safe Driver.';
+        tierDesc =
+            'You\'re getting better! Score avg 80+ to become a Safe Driver.';
         nextThreshold = 80;
         break;
       default:
@@ -74,7 +75,7 @@ class RewardsScreen extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [tierColor.withOpacity(0.15), AppColors.card],
+          colors: [tierColor.withOpacity(0.15), context.cardBg],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -97,36 +98,35 @@ class RewardsScreen extends StatelessWidget {
           Text(
             tierDesc,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: TextStyle(color: context.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 16),
-          // Progress bar
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 8,
-              backgroundColor: AppColors.cardBorder,
+              backgroundColor: context.borderColor,
               valueColor: AlwaysStoppedAnimation(tierColor),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Avg: ${avgScore.toStringAsFixed(0)} / ${nextThreshold.toStringAsFixed(0)}',
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+            style: TextStyle(color: context.textMuted, fontSize: 12),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPointsCard(int points) {
+  Widget _buildPointsCard(BuildContext context, int points) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: context.borderColor),
       ),
       child: Row(
         children: [
@@ -136,15 +136,16 @@ class RewardsScreen extends StatelessWidget {
               color: AppColors.warningLight.withOpacity(0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.stars, color: AppColors.warningLight, size: 28),
+            child: const Icon(Icons.stars,
+                color: AppColors.warningLight, size: 28),
           ),
           const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Total Points',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                style: TextStyle(color: context.textMuted, fontSize: 13),
               ),
               Text(
                 '$points',
@@ -161,61 +162,42 @@ class RewardsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRedemptionSection() {
+  Widget _buildRedemptionSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Redeem Rewards',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: context.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 12),
-        _rewardCard(
-          'Fuel Voucher',
-          '₹100 fuel discount',
-          '500 pts',
-          Icons.local_gas_station,
-          AppColors.accent,
-        ),
+        _rewardCard(context, 'Fuel Voucher', '₹100 fuel discount', '500 pts',
+            Icons.local_gas_station, AppColors.accent),
         const SizedBox(height: 10),
-        _rewardCard(
-          'Insurance Discount',
-          '5% off next premium',
-          '1000 pts',
-          Icons.security,
-          AppColors.safe,
-        ),
+        _rewardCard(context, 'Insurance Discount', '5% off next premium',
+            '1000 pts', Icons.security, AppColors.safe),
         const SizedBox(height: 10),
-        _rewardCard(
-          'Service Coupon',
-          'Free vehicle health check',
-          '750 pts',
-          Icons.build,
-          AppColors.primaryLight,
-        ),
+        _rewardCard(context, 'Service Coupon', 'Free vehicle health check',
+            '750 pts', Icons.build, AppColors.primaryLight),
         const SizedBox(height: 10),
-        _rewardCard(
-          'Parking Pass',
-          '1 hour free parking',
-          '300 pts',
-          Icons.local_parking,
-          AppColors.warningLight,
-        ),
+        _rewardCard(context, 'Parking Pass', '1 hour free parking', '300 pts',
+            Icons.local_parking, AppColors.warningLight),
       ],
     );
   }
 
-  Widget _rewardCard(String title, String desc, String cost, IconData icon, Color color) {
+  Widget _rewardCard(BuildContext context, String title, String desc,
+      String cost, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.surfaceBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.cardBorder.withOpacity(0.5)),
+        border: Border.all(color: context.borderColor.withOpacity(0.5)),
       ),
       child: Row(
         children: [
@@ -234,15 +216,15 @@ class RewardsScreen extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   desc,
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  style: TextStyle(color: context.textMuted, fontSize: 12),
                 ),
               ],
             ),
@@ -255,7 +237,7 @@ class RewardsScreen extends StatelessWidget {
             ),
             child: Text(
               cost,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.primaryLight,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,

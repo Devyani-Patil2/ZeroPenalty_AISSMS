@@ -26,7 +26,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -71,8 +71,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   Text(
                     'Hi, ${profile.profile.name}! 👋',
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: context.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -80,7 +80,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(
                     profile.profile.tier,
                     style: TextStyle(
-                      color: AppColors.scoreColor(profile.profile.lifetimeAvgScore),
+                      color: AppColors.scoreColor(
+                          profile.profile.lifetimeAvgScore),
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -151,7 +152,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (context, profile, _) {
         return Row(
           children: [
-            _statCard('Trips', '${profile.profile.totalTrips}', Icons.route, AppColors.accent),
+            _statCard('Trips', '${profile.profile.totalTrips}', Icons.route,
+                AppColors.accent),
             const SizedBox(width: 12),
             _statCard(
               'Avg Score',
@@ -160,7 +162,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               AppColors.scoreColor(profile.profile.lifetimeAvgScore),
             ),
             const SizedBox(width: 12),
-            _statCard('Points', '${profile.profile.totalPoints}', Icons.stars, AppColors.warningLight),
+            _statCard('Points', '${profile.profile.totalPoints}', Icons.stars,
+                AppColors.warningLight),
           ],
         );
       },
@@ -172,9 +175,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: context.cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.cardBorder),
+          border: Border.all(color: context.borderColor),
         ),
         child: Column(
           children: [
@@ -190,7 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             Text(
               label,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+              style: TextStyle(color: context.textMuted, fontSize: 12),
             ),
           ],
         ),
@@ -199,41 +202,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildLastTrip() {
-    return Consumer<TripProvider>(
-      builder: (context, trip, _) {
-        final last = trip.lastCompletedTrip;
-        if (last == null) {
+    return Consumer<HistoryProvider>(
+      builder: (context, history, _) {
+        if (history.trips.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: context.cardBg,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.cardBorder),
+              border: Border.all(color: context.borderColor),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
                 'No trips yet. Start your first trip!',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                style: TextStyle(color: context.textMuted, fontSize: 14),
               ),
             ),
           );
         }
 
+        final last = history.trips.first;
         final score = last.mlScore ?? last.localScore;
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: context.cardBg,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.cardBorder),
+            border: Border.all(color: context.borderColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Last Trip',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: context.textSecondary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -266,15 +269,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Text(
                           last.formattedDuration,
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
+                          style: TextStyle(
+                            color: context.textPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
                           '${last.distanceKm.toStringAsFixed(1)} km • +${last.pointsEarned} pts',
-                          style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                          style:
+                              TextStyle(color: context.textMuted, fontSize: 13),
                         ),
                       ],
                     ),
@@ -296,10 +300,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Recent Trips',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -311,9 +315,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.surfaceBg,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.cardBorder.withOpacity(0.5)),
+                  border:
+                      Border.all(color: context.borderColor.withOpacity(0.5)),
                 ),
                 child: Row(
                   children: [
@@ -342,15 +347,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: [
                           Text(
                             trip.formattedDuration,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
+                            style: TextStyle(
+                              color: context.textPrimary,
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           Text(
                             '${trip.distanceKm.toStringAsFixed(1)} km',
-                            style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                            style: TextStyle(
+                                color: context.textMuted, fontSize: 12),
                           ),
                         ],
                       ),

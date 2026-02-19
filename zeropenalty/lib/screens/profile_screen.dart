@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
+import '../providers/theme_provider.dart';
+import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
+import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -32,7 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -45,20 +48,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Avatar
                   Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         colors: [AppColors.primary, AppColors.accent],
                       ),
                     ),
                     child: Container(
                       width: 80,
                       height: 80,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: AppColors.card,
+                        color: context.cardBg,
                       ),
-                      child: const Icon(Icons.person, color: AppColors.textSecondary, size: 40),
+                      child: Icon(Icons.person,
+                          color: context.textSecondary, size: 40),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -72,17 +76,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: TextField(
                                 controller: _nameController,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
+                                style: TextStyle(
+                                  color: context.textPrimary,
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 decoration: InputDecoration(
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(color: AppColors.primary),
+                                    borderSide: const BorderSide(
+                                        color: AppColors.primary),
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
                                 ),
                               ),
                             ),
@@ -91,7 +97,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 profile.updateName(_nameController.text);
                                 setState(() => _isEditing = false);
                               },
-                              icon: const Icon(Icons.check, color: AppColors.safe),
+                              icon: const Icon(Icons.check,
+                                  color: AppColors.safe),
                             ),
                           ],
                         )
@@ -102,22 +109,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             children: [
                               Text(
                                 p.name,
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
+                                style: TextStyle(
+                                  color: context.textPrimary,
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Icon(Icons.edit, color: AppColors.textMuted, size: 16),
+                              Icon(Icons.edit,
+                                  color: context.textMuted, size: 16),
                             ],
                           ),
                         ),
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                     decoration: BoxDecoration(
-                      color: AppColors.scoreColor(p.lifetimeAvgScore).withOpacity(0.15),
+                      color: AppColors.scoreColor(p.lifetimeAvgScore)
+                          .withOpacity(0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -133,33 +143,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Stats grid
                   Row(
                     children: [
-                      _profileStat('Total Trips', '${p.totalTrips}', Icons.route, AppColors.accent),
+                      _profileStat('Total Trips', '${p.totalTrips}',
+                          Icons.route, AppColors.accent),
                       const SizedBox(width: 12),
-                      _profileStat('Avg Score', p.lifetimeAvgScore.toStringAsFixed(0), Icons.speed,
+                      _profileStat(
+                          'Avg Score',
+                          p.lifetimeAvgScore.toStringAsFixed(0),
+                          Icons.speed,
                           AppColors.scoreColor(p.lifetimeAvgScore)),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      _profileStat('Points', '${p.totalPoints}', Icons.stars, AppColors.warningLight),
+                      _profileStat('Points', '${p.totalPoints}', Icons.stars,
+                          AppColors.warningLight),
                       const SizedBox(width: 12),
-                      _profileStat('Cluster', p.clusterLabel, Icons.analytics, AppColors.primaryLight),
+                      _profileStat('Cluster', p.clusterLabel, Icons.analytics,
+                          AppColors.primaryLight),
                     ],
                   ),
                   const SizedBox(height: 30),
+
+                  // ── Theme Toggle ──
+                  _buildThemeToggle(),
+                  const SizedBox(height: 16),
+
+                  // ── Sign Out Button ──
+                  _buildSignOutButton(),
+                  const SizedBox(height: 16),
+
                   // About section
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color: context.cardBg,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.cardBorder),
+                      border: Border.all(color: context.borderColor),
                     ),
-                    child: const Column(
+                    child: Column(
                       children: [
-                        Text(
+                        const Text(
                           'ZeroPenalty',
                           style: TextStyle(
                             color: AppColors.primary,
@@ -167,16 +192,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           'Version 1.0.0',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                          style:
+                              TextStyle(color: context.textMuted, fontSize: 12),
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           'Real-time driving behavior coaching.\nGuide, don\'t punish.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                          style: TextStyle(
+                              color: context.textSecondary, fontSize: 13),
                         ),
                       ],
                     ),
@@ -190,14 +217,88 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildThemeToggle() {
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, _) {
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+          decoration: BoxDecoration(
+            color: context.cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: context.borderColor),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                themeProvider.isDarkMode
+                    ? Icons.dark_mode_rounded
+                    : Icons.light_mode_rounded,
+                color: themeProvider.isDarkMode
+                    ? AppColors.warningLight
+                    : Colors.orange,
+                size: 24,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  themeProvider.isDarkMode ? 'Dark Mode' : 'Light Mode',
+                  style: TextStyle(
+                    color: context.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Switch(
+                value: themeProvider.isDarkMode,
+                onChanged: (_) => themeProvider.toggleTheme(),
+                activeColor: AppColors.primary,
+                inactiveThumbColor: AppColors.primary,
+                inactiveTrackColor: AppColors.primaryLight.withOpacity(0.3),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSignOutButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () async {
+          await context.read<AuthProvider>().signOut();
+          if (context.mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+              (route) => false,
+            );
+          }
+        },
+        icon: const Icon(Icons.logout_rounded, size: 20),
+        label: const Text('Sign Out'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.danger,
+          side: const BorderSide(color: AppColors.danger),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _profileStat(String label, String value, IconData icon, Color color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: context.cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.cardBorder),
+          border: Border.all(color: context.borderColor),
         ),
         child: Column(
           children: [
@@ -214,7 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+              style: TextStyle(color: context.textMuted, fontSize: 12),
             ),
           ],
         ),

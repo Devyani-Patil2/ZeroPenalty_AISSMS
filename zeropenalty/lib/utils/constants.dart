@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 /// App-wide constants
 class AppConstants {
   // API
-  static const String apiBaseUrl = 'http://10.0.2.2:8000'; // Android emulator → localhost
+  static const String apiBaseUrl =
+      'http://10.0.2.2:8000'; // Android emulator → localhost
   static const int driverId = 1;
 
   // Detection thresholds
@@ -34,12 +35,17 @@ class AppConstants {
   static const int sensorUpdateMs = 1000;
 }
 
-/// App color palette
+/// App color palette — brand / accent colors (theme-independent)
 class AppColors {
+  // Dark-only fallback colors (used by screens that haven't migrated)
   static const Color background = Color(0xFF0A0E27);
   static const Color surface = Color(0xFF141832);
   static const Color card = Color(0xFF1C2045);
   static const Color cardBorder = Color(0xFF2A2F5A);
+
+  // Green theme (splash / auth screens)
+  static const Color primaryGreen = Color(0xFF4CAF50);
+  static const Color splashBg = Color(0xFF1A1A2E);
 
   static const Color primary = Color(0xFF6C63FF);
   static const Color primaryLight = Color(0xFF8B85FF);
@@ -74,4 +80,21 @@ class AppColors {
         return textSecondary;
     }
   }
+}
+
+/// Theme-aware color helpers via BuildContext extension
+extension AppTheme on BuildContext {
+  bool get isDark => Theme.of(this).brightness == Brightness.dark;
+
+  Color get bg => Theme.of(this).scaffoldBackgroundColor;
+  Color get cardBg => isDark ? AppColors.card : Colors.white;
+  Color get surfaceBg => isDark ? AppColors.surface : const Color(0xFFF0F0F5);
+  Color get borderColor =>
+      isDark ? AppColors.cardBorder : const Color(0xFFE0E0E0);
+
+  Color get textPrimary => isDark ? Colors.white : const Color(0xFF1A1A2E);
+  Color get textSecondary =>
+      isDark ? const Color(0xFFB0B3D6) : const Color(0xFF616161);
+  Color get textMuted =>
+      isDark ? const Color(0xFF6B6F99) : const Color(0xFF9E9E9E);
 }
