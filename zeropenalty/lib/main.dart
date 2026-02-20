@@ -19,7 +19,13 @@ import 'utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp();
+    debugPrint('[main] ✅ Firebase initialized');
+  } catch (e) {
+    debugPrint(
+        '[main] ⚠️ Firebase init failed: $e — app will continue without auth');
+  }
   runApp(const ZeroPenaltyApp());
 }
 

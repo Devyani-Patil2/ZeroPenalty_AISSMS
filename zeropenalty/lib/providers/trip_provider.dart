@@ -15,11 +15,19 @@ import '../utils/constants.dart';
 
 /// Manages active trip state
 class TripProvider extends ChangeNotifier {
-  final SensorService _sensorService = SensorService(useSimulation: AppConstants.useSimulation);
+  SensorService _sensorService =
+      SensorService(useSimulation: AppConstants.useSimulation);
   final EventDetector _eventDetector = EventDetector();
   final ZoneManager _zoneManager = ZoneManager();
   final AlertManager _alertManager = AlertManager();
   FlutterTts? _tts;
+
+  // Demo / Live mode
+  bool _isDemoMode = AppConstants.useSimulation;
+  bool _isSimulatedTrip = false;
+
+  // Location error — set when LIVE mode can't get GPS
+  String? _locationError;
 
   // Trip state
   bool _isActive = false;
@@ -42,6 +50,9 @@ class TripProvider extends ChangeNotifier {
 
   // Getters
   bool get isActive => _isActive;
+  bool get isDemoMode => _isDemoMode;
+  bool get isSimulatedTrip => _isSimulatedTrip;
+  String? get locationError => _locationError;
   double get currentSpeed => _currentSpeed;
   double get maxSpeed => _maxSpeed;
   double get latitude => _latitude;
@@ -60,6 +71,21 @@ class TripProvider extends ChangeNotifier {
     return ScoringEngine.calculateScore(_events);
   }
 
+  /// Clear the location error
+  void clearLocationError() {
+    _locationError = null;
+    notifyListeners();
+  }
+
+  /// Toggle between demo and live mode (only when trip is not active)
+  void toggleDemoMode() {
+    if (_isActive) return; // can't switch mid-trip
+    _isDemoMode = !_isDemoMode;
+    _locationError = null;
+    _sensorService = SensorService(useSimulation: _isDemoMode);
+    notifyListeners();
+  }
+
   /// Initialize TTS
   Future<void> _initTts() async {
     _tts = FlutterTts();
@@ -68,9 +94,11 @@ class TripProvider extends ChangeNotifier {
     await _tts!.setVolume(1.0);
   }
 
-  /// Start a new trip
-  Future<void> startTrip() async {
-    if (_isActive) return;
+  /// Start a new trip.
+  /// Returns true if trip started, false if blocked (e.g. location error).
+  Future<bool> startTrip() async {
+    if (_isActive) return false;
+    _locationError = null;
 
     await _initTts();
     _eventDetector.reset();
@@ -83,19 +111,35 @@ class TripProvider extends ChangeNotifier {
     _speedReadings = 0;
     _tripDurationSeconds = 0;
     _distanceKm = 0;
-    _isActive = true;
+    _isSimulatedTrip = _isDemoMode;
 
-    // Start duration timer
-    _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      _tripDurationSeconds++;
+    // Start sensor stream (real or demo based on current mode)
+    _sensorService = SensorService(useSimulation: _isDemoMode);
+    try {
+      final stream = await _sensorService.startSensors();
+      _isActive = true;
+
+      // Start duration timer
+      _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        _tripDurationSeconds++;
+        notifyListeners();
+      });
+
+      _sensorSub = stream.listen(_onSensorData);
       notifyListeners();
-    });
-
-    // Start sensor stream
-    final stream = _sensorService.startSensors();
-    _sensorSub = stream.listen(_onSensorData);
-
-    notifyListeners();
+      return true;
+    } on LocationNotAvailableException catch (e) {
+      // LIVE mode failed — don't start the trip, show error
+      _locationError = e.message;
+      _isActive = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _locationError = 'Failed to start sensors: $e';
+      _isActive = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   /// Process incoming sensor data

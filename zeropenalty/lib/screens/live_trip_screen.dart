@@ -74,6 +74,25 @@ class LiveTripScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: 8),
+          // Demo / Live badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: (trip.isSimulatedTrip ? AppColors.warning : AppColors.safe)
+                  .withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              trip.isSimulatedTrip ? '🎮 DEMO' : '📡 LIVE',
+              style: TextStyle(
+                color:
+                    trip.isSimulatedTrip ? AppColors.warning : AppColors.safe,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
           const Spacer(),
           Text(
             '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
