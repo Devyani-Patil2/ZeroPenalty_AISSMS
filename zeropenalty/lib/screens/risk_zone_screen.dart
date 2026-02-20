@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/risk_zone_provider.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import '../models/risk_zone.dart';
 import '../services/risk_zone_service.dart';
 import '../utils/constants.dart';
@@ -14,552 +16,480 @@ class RiskZoneScreen extends StatefulWidget {
 }
 
 class _RiskZoneScreenState extends State<RiskZoneScreen> {
-  final _latCtrl = TextEditingController(text: '18.5284');
-  final _lngCtrl = TextEditingController(text: '73.8742');
-  final _speedCtrl = TextEditingController(text: '35');
-  Timer? _timeTimer;
+  final MapController _mapController = MapController();
+  final RiskZoneService _service = RiskZoneService();
+  FlutterTts? _tts;
+
+  // All 10 zones
+  late final List<RiskZone> _zones;
+
+  // Live GPS
+  LatLng? _userPosition;
+  StreamSubscription<Position>? _geoSub;
+  bool _gpsAvailable = false;
+
+  // Zone entry warning
+  String? _lastWarnedZoneId;
+
+  // Selected zone for bottom panel
+  RiskZone? _selectedZone;
 
   // Risk-level colors
   static const _riskColors = {
-    'HIGH': Color(0xFFFF2D55),
-    'MEDIUM': Color(0xFFFF9F0A),
-    'LOW': Color(0xFF30D158),
+    'HIGH': AppColors.danger,
+    'MEDIUM': AppColors.warning,
+    'LOW': AppColors.safe,
   };
-  static const _riskIcons = {'HIGH': '⚠️', 'MEDIUM': '🔶', 'LOW': '✅'};
 
   @override
   void initState() {
     super.initState();
-    _timeTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) {
-        context.read<RiskZoneProvider>().refreshTimeRisk();
-      }
-    });
+    _zones = _service.getAllZones();
+    _initTts();
+    _startGps();
   }
 
   @override
   void dispose() {
-    _timeTimer?.cancel();
-    _latCtrl.dispose();
-    _lngCtrl.dispose();
-    _speedCtrl.dispose();
+    _geoSub?.cancel();
+    _tts?.stop();
     super.dispose();
   }
 
-  void _detect() {
-    final lat = double.tryParse(_latCtrl.text);
-    final lng = double.tryParse(_lngCtrl.text);
-    final speed = double.tryParse(_speedCtrl.text);
-    if (lat == null || lng == null || speed == null) return;
-    context.read<RiskZoneProvider>().detect(lat, lng, speed);
+  Future<void> _initTts() async {
+    _tts = FlutterTts();
+    await _tts!.setLanguage('en-US');
+    await _tts!.setSpeechRate(0.5);
+    await _tts!.setVolume(1.0);
   }
 
-  void _loadPreset(int index) {
-    final p = RiskZoneService.presets[index];
-    _latCtrl.text = p['lat'].toString();
-    _lngCtrl.text = p['lng'].toString();
-    _speedCtrl.text = p['speed'].toString();
-    context.read<RiskZoneProvider>().loadPreset(index);
+  Future<void> _startGps() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      setState(() => _gpsAvailable = true);
+
+      // Get initial position
+      try {
+        final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+        if (mounted) {
+          setState(() {
+            _userPosition = LatLng(pos.latitude, pos.longitude);
+          });
+        }
+      } catch (_) {}
+
+      // Stream updates
+      _geoSub = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 5,
+        ),
+      ).listen((Position pos) {
+        if (!mounted) return;
+        setState(() {
+          _userPosition = LatLng(pos.latitude, pos.longitude);
+        });
+        _checkZoneEntry(pos.latitude, pos.longitude);
+      });
+    } catch (_) {}
   }
 
-  Color _riskColor(String level) =>
-      _riskColors[level] ?? const Color(0xFF636366);
+  void _checkZoneEntry(double lat, double lng) {
+    final zone = _service.detectZoneOffline(lat, lng);
+
+    // Only warn if entering a HIGH-risk zone and haven't warned for this zone yet
+    if (zone.riskLevel == 'HIGH' &&
+        zone.id != _lastWarnedZoneId &&
+        !zone.isDefaultZone) {
+      _lastWarnedZoneId = zone.id;
+      _showZoneWarning(zone);
+    } else if (zone.isDefaultZone || zone.riskLevel != 'HIGH') {
+      // Reset when leaving HIGH zone so re-entry triggers warning again
+      if (_lastWarnedZoneId != null &&
+          _zones
+              .any((z) => z.id == _lastWarnedZoneId && z.riskLevel == 'HIGH')) {
+        _lastWarnedZoneId = null;
+      }
+    }
+  }
+
+  void _showZoneWarning(RiskZone zone) {
+    // Voice warning
+    _tts?.speak(
+      'Warning. You are entering ${zone.name}. This is a high risk zone. Speed limit is ${zone.speedLimit} kilometers per hour.',
+    );
+
+    // Popup dialog
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.card,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded,
+                  color: AppColors.danger, size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'High Risk Zone!',
+                  style: const TextStyle(
+                    color: AppColors.danger,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                zone.name,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                zone.description,
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.danger.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.danger.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.speed, color: AppColors.danger, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Speed Limit: ${zone.speedLimit} km/h',
+                      style: const TextStyle(
+                        color: AppColors.danger,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.danger,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('I Understand'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Color _riskColor(String level) => _riskColors[level] ?? Colors.grey;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.bg,
       body: SafeArea(
-        child: Consumer<RiskZoneProvider>(
-          builder: (context, prov, _) {
-            return CustomScrollView(
-              slivers: [
-                // ── Header ──
-                SliverToBoxAdapter(child: _buildHeader()),
-                // ── Input Card ──
-                SliverToBoxAdapter(child: _buildInputCard()),
-                // ── Quick Test Presets ──
-                SliverToBoxAdapter(child: _buildPresets()),
-                // ── Time Risk Banner ──
-                SliverToBoxAdapter(child: _buildTimeRiskBanner(prov)),
-                // ── Zone Detection Result ──
-                if (prov.isLoading)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(40),
-                      child: Center(
-                          child: CircularProgressIndicator(
-                              color: Color(0xFF00D4FF))),
-                    ),
-                  )
-                else if (prov.hasResult) ...[
-                  SliverToBoxAdapter(child: _buildZoneCard(prov.result!)),
-                  SliverToBoxAdapter(child: _buildStatsGrid(prov.result!)),
-                  SliverToBoxAdapter(child: _buildAlertBanner(prov.result!)),
-                ] else
-                  SliverToBoxAdapter(child: _buildEmptyState()),
-                // ── All Zones Table ──
-                SliverToBoxAdapter(child: _buildZonesTable(prov)),
-                const SliverToBoxAdapter(child: SizedBox(height: 100)),
-              ],
-            );
-          },
+        child: Stack(
+          children: [
+            // ── Map ──
+            _buildMap(),
+            // ── Top bar ──
+            _buildTopBar(),
+            // ── Legend ──
+            _buildLegend(),
+            // ── GPS status badge ──
+            _buildGpsBadge(),
+            // ── Bottom zone info panel ──
+            if (_selectedZone != null) _buildBottomPanel(_selectedZone!),
+            // ── Center-on-me FAB ──
+            if (_userPosition != null) _buildCenterFab(),
+          ],
         ),
       ),
     );
   }
 
-  // ─── Header ──────────────────────────────────────────────────────
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: context.cardBg,
-        border: Border(bottom: BorderSide(color: context.borderColor)),
+  Widget _buildMap() {
+    final puneCenter = LatLng(18.52, 73.86);
+
+    return FlutterMap(
+      mapController: _mapController,
+      options: MapOptions(
+        initialCenter: _userPosition ?? puneCenter,
+        initialZoom: 12.5,
+        onTap: (_, __) {
+          setState(() => _selectedZone = null);
+        },
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF00D4FF), width: 2),
-            ),
-            child: const Center(
-              child: Icon(Icons.warning_amber_rounded,
-                  color: Color(0xFF00D4FF), size: 22),
-            ),
+      children: [
+        // ── OSM Tiles ──
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.example.zeropenalty',
+        ),
+        // ── Zone circles ──
+        CircleLayer(
+          circles: _zones.map((zone) {
+            final color = _riskColor(zone.riskLevel);
+            final isSelected = _selectedZone?.id == zone.id;
+            return CircleMarker(
+              point: LatLng(zone.latitude, zone.longitude),
+              radius: zone.radius,
+              useRadiusInMeter: true,
+              color: color.withOpacity(isSelected ? 0.35 : 0.2),
+              borderColor: color.withOpacity(isSelected ? 1.0 : 0.7),
+              borderStrokeWidth: isSelected ? 3 : 2,
+            );
+          }).toList(),
+        ),
+        // ── Zone name labels (as markers) ──
+        MarkerLayer(
+          markers: _zones.map((zone) {
+            final color = _riskColor(zone.riskLevel);
+            return Marker(
+              point: LatLng(zone.latitude, zone.longitude),
+              width: 140,
+              height: 50,
+              child: GestureDetector(
+                onTap: () {
+                  setState(() => _selectedZone = zone);
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.card.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: color, width: 1.5),
+                      ),
+                      child: Text(
+                        zone.name.length > 18
+                            ? '${zone.name.substring(0, 16)}…'
+                            : zone.name,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(Icons.arrow_drop_down, color: color, size: 14),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        // ── User position marker ──
+        if (_userPosition != null)
+          MarkerLayer(
+            markers: [
+              Marker(
+                point: _userPosition!,
+                width: 30,
+                height: 30,
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.accent.withOpacity(0.3),
+                    border: Border.all(color: AppColors.accent, width: 2),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.my_location,
+                        color: AppColors.accent, size: 16),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('ZEROPENALTY',
+      ],
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.background.withOpacity(0.95),
+              AppColors.background.withOpacity(0.0),
+            ],
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.card.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.primary.withOpacity(0.5)),
+              ),
+              child: const Icon(Icons.warning_amber_rounded,
+                  color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'RISK ZONES',
                   style: TextStyle(
                     color: context.textPrimary,
                     fontWeight: FontWeight.w900,
-                    fontSize: 18,
+                    fontSize: 16,
                     letterSpacing: 3,
-                  )),
-              const Text('Risk Zone Intelligence',
-                  style: TextStyle(
-                    color: Color(0xFF00D4FF),
-                    fontSize: 10,
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.w500,
-                  )),
-            ],
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(100),
-              border: Border.all(color: context.borderColor),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(
-                      shape: BoxShape.circle, color: Color(0xFF30D158)),
+                  ),
                 ),
-                const SizedBox(width: 6),
-                Text('ONLINE',
-                    style: TextStyle(
-                      color: context.textMuted,
-                      fontSize: 10,
-                      letterSpacing: 1,
-                    )),
+                Text(
+                  'Pune, India — ${_zones.length} zones mapped',
+                  style: TextStyle(
+                    color: context.textMuted,
+                    fontSize: 10,
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  // ─── Input Card ──────────────────────────────────────────────────
-  Widget _buildInputCard() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      padding: const EdgeInsets.all(20),
-      decoration: _cardDeco(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _cardLabel('GPS + Speed Input'),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: _inputField('Latitude', _latCtrl)),
-              const SizedBox(width: 10),
-              Expanded(child: _inputField('Longitude', _lngCtrl)),
-              const SizedBox(width: 10),
-              Expanded(child: _inputField('Speed (km/h)', _speedCtrl)),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: Consumer<RiskZoneProvider>(
-              builder: (context, prov, _) => ElevatedButton(
-                onPressed: prov.isLoading ? null : _detect,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00D4FF),
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  textStyle: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      letterSpacing: 2),
-                ),
-                child: prov.isLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.black))
-                    : const Text('DETECT ZONE'),
-              ),
-            ),
-          ),
-        ],
+  Widget _buildLegend() {
+    return Positioned(
+      top: 70,
+      right: 12,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.card.withOpacity(0.92),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.cardBorder.withOpacity(0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _legendRow(AppColors.danger, 'HIGH Risk'),
+            const SizedBox(height: 6),
+            _legendRow(AppColors.warning, 'MEDIUM Risk'),
+            const SizedBox(height: 6),
+            _legendRow(AppColors.safe, 'LOW Risk'),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _inputField(String label, TextEditingController ctrl) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _legendRow(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label.toUpperCase(),
-            style: TextStyle(
-              color: context.textMuted,
-              fontSize: 9,
-              letterSpacing: 2,
-              fontWeight: FontWeight.w500,
-            )),
-        const SizedBox(height: 6),
-        TextField(
-          controller: ctrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(
-              color: Color(0xFF00D4FF), fontSize: 14, fontFamily: 'monospace'),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: context.bg,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: context.borderColor),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: context.borderColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF00D4FF)),
-            ),
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color.withOpacity(0.3),
+            border: Border.all(color: color, width: 2),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
     );
   }
 
-  // ─── Quick Test Presets ──────────────────────────────────────────
-  Widget _buildPresets() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('QUICK TEST →',
-              style: TextStyle(
-                color: context.textMuted,
-                fontSize: 10,
-                letterSpacing: 2,
-              )),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: List.generate(RiskZoneService.presets.length, (i) {
-              final p = RiskZoneService.presets[i];
-              return OutlinedButton(
-                onPressed: () => _loadPreset(i),
-                style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  side: BorderSide(color: context.borderColor),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6)),
-                ),
-                child: Text(p['label'],
-                    style: TextStyle(
-                      color: context.textSecondary,
-                      fontSize: 12,
-                    )),
-              );
-            }),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Time Risk Banner ───────────────────────────────────────────
-  Widget _buildTimeRiskBanner(RiskZoneProvider prov) {
-    final labels = (prov.timeRisk['labels'] ?? []) as List;
-    final isNight = prov.timeRisk['isNight'] ?? false;
-    final now = DateTime.now();
-    final timeStr =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-
-    final bannerColor = labels.isEmpty
-        ? const Color(0xFF30D158)
-        : (isNight ? const Color(0xFFFF2D55) : const Color(0xFFFF9F0A));
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: context.cardBg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: bannerColor.withOpacity(0.4)),
-      ),
-      child: Row(
-        children: [
-          Text('⏱ TIME RISK',
-              style: TextStyle(
-                color: context.textMuted,
-                fontSize: 10,
-                letterSpacing: 1,
-                fontWeight: FontWeight.w500,
-              )),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              labels.isEmpty
-                  ? '✅ Normal Hours — Standard Risk'
-                  : labels.join('  ·  '),
-              style: TextStyle(color: bannerColor, fontSize: 11),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Text('🕐 $timeStr',
-              style: TextStyle(
-                color: context.textMuted,
-                fontSize: 10,
-              )),
-        ],
-      ),
-    );
-  }
-
-  // ─── Empty State ────────────────────────────────────────────────
-  Widget _buildEmptyState() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      padding: const EdgeInsets.all(20),
-      decoration: _cardDeco(),
-      child: Column(
-        children: [
-          _cardLabel('Detected Zone'),
-          const SizedBox(height: 24),
-          const Text('📍', style: TextStyle(fontSize: 48)),
-          const SizedBox(height: 8),
-          Text('Enter GPS coordinates and press DETECT ZONE',
-              style: TextStyle(
-                color: context.textMuted,
-                fontSize: 12,
-                letterSpacing: 1,
-              )),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  // ─── Zone Detection Card ────────────────────────────────────────
-  Widget _buildZoneCard(RiskDetectionResult result) {
-    final zone = result.zone;
-    final risk = zone.riskLevel;
-    final color = _riskColor(risk);
-    final icon = _riskIcons[risk] ?? '📍';
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      padding: const EdgeInsets.all(20),
-      decoration: _cardDeco(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _cardLabel('Detected Zone'),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Risk Badge Circle
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: color, width: 3),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(icon, style: const TextStyle(fontSize: 24)),
-                    const SizedBox(height: 2),
-                    Text(risk,
-                        style: TextStyle(
-                          color: color,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2,
-                        )),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Zone Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(zone.name,
-                        style: TextStyle(
-                          color: color,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          height: 1.2,
-                        )),
-                    const SizedBox(height: 4),
-                    Text(zone.description,
-                        style: TextStyle(
-                          color: context.textMuted,
-                          fontSize: 12,
-                          height: 1.4,
-                        )),
-                    const SizedBox(height: 10),
-                    // Tags
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        _tag('$risk RISK', color),
-                        _tag('🔔 ${zone.alertStrength} ALERT',
-                            context.borderColor),
-                        _tag('⚡ ${zone.penaltyMultiplier}× MULTIPLIER',
-                            context.borderColor),
-                        if (zone.isDefaultZone)
-                          _tag('DEFAULT ZONE', context.borderColor),
-                        if (zone.isDynamic)
-                          _tag('🌐 DYNAMIC', const Color(0xFF00D4FF))
-                        else
-                          _tag('📁 STATIC', context.borderColor),
-                        if (zone.accidentHotspot)
-                          _tag('⚠️ ACCIDENT HOTSPOT', const Color(0xFFFF2D55)),
-                        ...zone.timeLabels
-                            .map((l) => _tag(l, const Color(0xFFFF9F0A))),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Stats Grid ─────────────────────────────────────────────────
-  Widget _buildStatsGrid(RiskDetectionResult result) {
-    final zone = result.zone;
-    final speed = result.currentSpeed;
-    final isOver = result.isOverspeed;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: [
-          _statBlock(
-            'Current Speed',
-            speed.toStringAsFixed(1),
-            'km/h',
-            (speed / 120).clamp(0.0, 1.0),
-            isOver ? const Color(0xFFFF2D55) : const Color(0xFF00D4FF),
-          ),
-          const SizedBox(width: 10),
-          _statBlock(
-            'Speed Limit',
-            zone.speedLimit.toString(),
-            'km/h',
-            (zone.speedLimit / 120).clamp(0.0, 1.0),
-            const Color(0xFF30D158),
-          ),
-          const SizedBox(width: 10),
-          _statBlock(
-            'Penalty ×',
-            '${zone.penaltyMultiplier}×',
-            '× base fine',
-            (zone.penaltyMultiplier / 4).clamp(0.0, 1.0),
-            const Color(0xFFFF9F0A),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statBlock(String label, String value, String unit, double progress,
-      Color barColor) {
-    return Expanded(
+  Widget _buildGpsBadge() {
+    return Positioned(
+      top: 70,
+      left: 12,
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: context.cardBg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: context.borderColor),
+          color: AppColors.card.withOpacity(0.92),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: _gpsAvailable
+                ? AppColors.safe.withOpacity(0.5)
+                : AppColors.danger.withOpacity(0.5),
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label.toUpperCase(),
-                style: TextStyle(
-                  color: context.textMuted,
-                  fontSize: 8,
-                  letterSpacing: 2,
-                )),
-            const SizedBox(height: 6),
-            Text(value,
-                style: TextStyle(
-                  color: context.textPrimary,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                )),
-            Text(unit,
-                style: TextStyle(
-                  color: context.textMuted,
-                  fontSize: 10,
-                )),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 3,
-                backgroundColor: context.borderColor.withOpacity(0.3),
-                valueColor: AlwaysStoppedAnimation(barColor),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _gpsAvailable ? AppColors.safe : AppColors.danger,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              _gpsAvailable
+                  ? (_userPosition != null ? 'GPS LIVE' : 'GPS WAITING...')
+                  : 'GPS OFF',
+              style: TextStyle(
+                color: _gpsAvailable ? AppColors.safe : AppColors.danger,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1,
               ),
             ),
           ],
@@ -568,231 +498,170 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
     );
   }
 
-  // ─── Alert Banner ───────────────────────────────────────────────
-  Widget _buildAlertBanner(RiskDetectionResult result) {
-    final zone = result.zone;
-    final isOver = result.isOverspeed;
-    final speed = result.currentSpeed;
-    final penalty = result.penalty;
-
-    final bgColor = isOver
-        ? const Color(0xFFFF2D55).withOpacity(0.08)
-        : const Color(0xFF30D158).withOpacity(0.08);
-    final borderColor = isOver
-        ? const Color(0xFFFF2D55).withOpacity(0.4)
-        : const Color(0xFF30D158).withOpacity(0.3);
-    final titleColor =
-        isOver ? const Color(0xFFFF2D55) : const Color(0xFF30D158);
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
+  Widget _buildCenterFab() {
+    return Positioned(
+      bottom: _selectedZone != null ? 210 : 24,
+      right: 16,
+      child: FloatingActionButton.small(
+        backgroundColor: AppColors.card,
+        onPressed: () {
+          if (_userPosition != null) {
+            _mapController.move(_userPosition!, 15);
+          }
+        },
+        child: const Icon(Icons.my_location, color: AppColors.accent, size: 20),
       ),
-      child: Row(
-        children: [
-          Text(isOver ? '🚨' : '✅', style: const TextStyle(fontSize: 32)),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildBottomPanel(RiskZone zone) {
+    final color = _riskColor(zone.riskLevel);
+
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          border:
+              Border(top: BorderSide(color: color.withOpacity(0.5), width: 2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            // Zone name + risk badge
+            Row(
               children: [
-                Text(
-                  isOver ? 'OVERSPEED DETECTED' : 'WITHIN SPEED LIMIT',
-                  style: TextStyle(
-                    color: titleColor,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                    letterSpacing: 2,
+                Expanded(
+                  child: Text(
+                    zone.name,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  isOver
-                      ? 'Going ${speed.toStringAsFixed(1)} km/h in a ${zone.speedLimit} km/h zone — ${result.overspeedBy.toStringAsFixed(1)} km/h over'
-                      : 'Going ${speed.toStringAsFixed(1)} km/h — ${(zone.speedLimit - speed).toStringAsFixed(1)} km/h below limit. Drive safe!',
-                  style: TextStyle(color: context.textMuted, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('FINE APPLICABLE',
-                  style: TextStyle(
-                    color: context.textMuted,
-                    fontSize: 9,
-                    letterSpacing: 2,
-                  )),
-              const SizedBox(height: 2),
-              Text(
-                '₹${penalty.toInt()}',
-                style: TextStyle(
-                  color: isOver
-                      ? const Color(0xFFFF375F)
-                      : const Color(0xFF30D158),
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── All Zones Table ────────────────────────────────────────────
-  Widget _buildZonesTable(RiskZoneProvider prov) {
-    final zones = prov.allZones;
-    final activeId = prov.result?.zone.id;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      padding: const EdgeInsets.all(20),
-      decoration: _cardDeco(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _cardLabel('All Defined Risk Zones — Pune, India'),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowHeight: 36,
-              dataRowMinHeight: 40,
-              dataRowMaxHeight: 48,
-              columnSpacing: 20,
-              headingTextStyle: TextStyle(
-                color: context.textMuted,
-                fontSize: 9,
-                letterSpacing: 2,
-                fontWeight: FontWeight.w600,
-              ),
-              columns: const [
-                DataColumn(label: Text('ZONE NAME')),
-                DataColumn(label: Text('RISK')),
-                DataColumn(label: Text('LIMIT')),
-                DataColumn(label: Text('PENALTY ×')),
-                DataColumn(label: Text('ALERT')),
-              ],
-              rows: zones.map((z) {
-                final isActive = z.id == activeId;
-                return DataRow(
-                  color: WidgetStateProperty.all(
-                    isActive
-                        ? const Color(0xFF00D4FF).withOpacity(0.05)
-                        : Colors.transparent,
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  cells: [
-                    DataCell(Text(z.name,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: color,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${zone.riskLevel} RISK',
                         style: TextStyle(
-                          color: context.textPrimary.withOpacity(0.9),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ))),
-                    DataCell(_riskChip(z.riskLevel)),
-                    DataCell(Text('${z.speedLimit} km/h',
-                        style: const TextStyle(
-                          color: Color(0xFF00D4FF),
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                        ))),
-                    DataCell(Text('${z.penaltyMultiplier}×',
-                        style: const TextStyle(
-                          color: Color(0xFFFF9F0A),
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                        ))),
-                    DataCell(Text(z.alertStrength,
-                        style: TextStyle(
-                          color: z.alertStrength == 'STRONG'
-                              ? const Color(0xFFFF2D55)
-                              : context.textMuted,
+                          color: color,
                           fontSize: 11,
-                          fontFamily: 'monospace',
-                        ))),
-                  ],
-                );
-              }).toList(),
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              zone.description,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            ),
+            const SizedBox(height: 14),
+            // Stats row
+            Row(
+              children: [
+                _panelStat(
+                    Icons.speed, '${zone.speedLimit}', 'km/h limit', color),
+                const SizedBox(width: 12),
+                _panelStat(Icons.gavel, '${zone.penaltyMultiplier}×',
+                    'fine multiplier', AppColors.warning),
+                const SizedBox(width: 12),
+                _panelStat(
+                  Icons.notifications_active,
+                  zone.alertStrength,
+                  'alert level',
+                  zone.alertStrength == 'STRONG'
+                      ? AppColors.danger
+                      : AppColors.textMuted,
+                ),
+                const SizedBox(width: 12),
+                _panelStat(Icons.circle_outlined, '${zone.radius.toInt()}m',
+                    'radius', AppColors.primary),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ─── Helpers ────────────────────────────────────────────────────
-  BoxDecoration _cardDeco() {
-    return BoxDecoration(
-      color: context.cardBg,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: context.borderColor),
-    );
-  }
-
-  Widget _cardLabel(String text) {
-    return Row(
-      children: [
-        Container(
-            width: 20,
-            height: 1,
-            color: const Color(0xFF00D4FF).withOpacity(0.6)),
-        const SizedBox(width: 8),
-        Text(text.toUpperCase(),
-            style: TextStyle(
-              color: context.textMuted,
-              fontSize: 10,
-              letterSpacing: 3,
-            )),
-      ],
-    );
-  }
-
-  Widget _tag(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.6)),
-      ),
-      child: Text(text,
-          style: TextStyle(color: color, fontSize: 9, letterSpacing: 1)),
-    );
-  }
-
-  Widget _riskChip(String level) {
-    final color = _riskColor(level);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-              width: 5,
-              height: 5,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color,
-              )),
-          const SizedBox(width: 5),
-          Text(level,
+  Widget _panelStat(IconData icon, String value, String label, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(height: 4),
+            Text(
+              value,
               style: TextStyle(
-                color: color,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1,
-              )),
-        ],
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 9,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
