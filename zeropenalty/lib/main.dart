@@ -15,6 +15,7 @@ import 'screens/rewards_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/risk_zone_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'utils/constants.dart';
 
 void main() async {
@@ -52,7 +53,9 @@ class ZeroPenaltyApp extends StatelessWidget {
             darkTheme: themeProvider.darkTheme,
             themeMode:
                 themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-            home: const SplashScreen(),
+            home: context.watch<AuthProvider>().isLoggedIn
+                ? const SplashScreen()
+                : const WelcomeScreen(),
             routes: {
               '/trip': (context) => const LiveTripScreen(),
               '/summary': (context) => const TripSummaryScreen(),

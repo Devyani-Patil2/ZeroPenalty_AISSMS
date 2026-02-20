@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import '../providers/trip_provider.dart';
 import '../providers/history_provider.dart';
 import '../providers/profile_provider.dart';
+import '../providers/theme_provider.dart';
 import '../utils/constants.dart';
 import '../engine/scoring_engine.dart';
 
@@ -89,6 +90,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ],
               ),
+            ),
+            // Theme toggle icon
+            Consumer<ThemeProvider>(
+              builder: (context, themeProvider, _) {
+                return GestureDetector(
+                  onTap: () => themeProvider.toggleTheme(),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: context.cardBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: context.borderColor),
+                    ),
+                    child: Icon(
+                      themeProvider.isDarkMode
+                          ? Icons.light_mode_rounded
+                          : Icons.dark_mode_rounded,
+                      color: themeProvider.isDarkMode
+                          ? AppColors.warningLight
+                          : AppColors.primary,
+                      size: 22,
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         );
@@ -229,7 +255,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [AppColors.primary, Color(0xFF4A42E8)],
+                    colors: [AppColors.primary, Color(0xFF388E3C)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),

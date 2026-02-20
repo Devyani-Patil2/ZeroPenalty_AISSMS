@@ -24,54 +24,54 @@ class ThemeProvider extends ChangeNotifier {
     await prefs.setBool(_key, _isDarkMode);
   }
 
-  // ─── Dark Theme ───
+  // ─── Dark Theme (charcoal + green — matches map bg) ───
   ThemeData get darkTheme => ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0A0E27),
-        primaryColor: const Color(0xFF6C63FF),
+        scaffoldBackgroundColor: const Color(0xFF1A1D1E),
+        primaryColor: const Color(0xFF4CAF50),
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF6C63FF),
-          secondary: Color(0xFF00D9FF),
-          surface: Color(0xFF141832),
+          primary: Color(0xFF4CAF50),
+          secondary: Color(0xFF66BB6A),
+          surface: Color(0xFF222626),
         ),
-        cardColor: const Color(0xFF1C2045),
-        dividerColor: const Color(0xFF2A2F5A),
+        cardColor: const Color(0xFF2A2E2F),
+        dividerColor: const Color(0xFF3A3E3F),
         fontFamily: 'Inter',
         useMaterial3: true,
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0A0E27),
+          backgroundColor: Color(0xFF1A1D1E),
           foregroundColor: Colors.white,
           elevation: 0,
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Color(0xFF141832),
-          selectedItemColor: Color(0xFF6C63FF),
-          unselectedItemColor: Color(0xFF6B6F99),
+          backgroundColor: Color(0xFF222626),
+          selectedItemColor: Color(0xFF4CAF50),
+          unselectedItemColor: Color(0xFF6E7573),
         ),
       );
 
-  // ─── Light Theme ───
+  // ─── Light Theme (soft gray-green tones) ───
   ThemeData get lightTheme => ThemeData(
         brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color(0xFFF5F6FA),
-        primaryColor: const Color(0xFF6C63FF),
+        scaffoldBackgroundColor: const Color(0xFFF2F5F3),
+        primaryColor: const Color(0xFF4CAF50),
         colorScheme: const ColorScheme.light(
-          primary: Color(0xFF6C63FF),
-          secondary: Color(0xFF00B8D4),
+          primary: Color(0xFF4CAF50),
+          secondary: Color(0xFF388E3C),
           surface: Colors.white,
         ),
         cardColor: Colors.white,
-        dividerColor: const Color(0xFFE0E0E0),
+        dividerColor: const Color(0xFFDDE0DD),
         fontFamily: 'Inter',
         useMaterial3: true,
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFF5F6FA),
-          foregroundColor: Color(0xFF1A1A2E),
+          backgroundColor: Color(0xFFF2F5F3),
+          foregroundColor: Color(0xFF1A1D1E),
           elevation: 0,
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
-          selectedItemColor: Color(0xFF6C63FF),
+          selectedItemColor: Color(0xFF4CAF50),
           unselectedItemColor: Color(0xFF9E9E9E),
         ),
       );

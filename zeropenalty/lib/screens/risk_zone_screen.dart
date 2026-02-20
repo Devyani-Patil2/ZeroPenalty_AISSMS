@@ -19,11 +19,11 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
   final _speedCtrl = TextEditingController(text: '35');
   Timer? _timeTimer;
 
-  // Risk-level colors
+  // Risk-level colors (synced with AppColors)
   static const _riskColors = {
-    'HIGH': Color(0xFFFF2D55),
-    'MEDIUM': Color(0xFFFF9F0A),
-    'LOW': Color(0xFF30D158),
+    'HIGH': AppColors.danger,
+    'MEDIUM': AppColors.warning,
+    'LOW': AppColors.safe,
   };
   static const _riskIcons = {'HIGH': '⚠️', 'MEDIUM': '🔶', 'LOW': '✅'};
 
@@ -89,7 +89,7 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
                       padding: EdgeInsets.all(40),
                       child: Center(
                           child: CircularProgressIndicator(
-                              color: Color(0xFF00D4FF))),
+                              color: AppColors.primary)),
                     ),
                   )
                 else if (prov.hasResult) ...[
@@ -124,11 +124,11 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
             height: 40,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF00D4FF), width: 2),
+              border: Border.all(color: AppColors.primary, width: 2),
             ),
             child: const Center(
               child: Icon(Icons.warning_amber_rounded,
-                  color: Color(0xFF00D4FF), size: 22),
+                  color: AppColors.primary, size: 22),
             ),
           ),
           const SizedBox(width: 12),
@@ -144,7 +144,7 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
                   )),
               const Text('Risk Zone Intelligence',
                   style: TextStyle(
-                    color: Color(0xFF00D4FF),
+                    color: AppColors.primary,
                     fontSize: 10,
                     letterSpacing: 2,
                     fontWeight: FontWeight.w500,
@@ -165,7 +165,7 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
                   width: 7,
                   height: 7,
                   decoration: const BoxDecoration(
-                      shape: BoxShape.circle, color: Color(0xFF30D158)),
+                      shape: BoxShape.circle, color: AppColors.safe),
                 ),
                 const SizedBox(width: 6),
                 Text('ONLINE',
@@ -209,8 +209,8 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
               builder: (context, prov, _) => ElevatedButton(
                 onPressed: prov.isLoading ? null : _detect,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00D4FF),
-                  foregroundColor: Colors.black,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8)),
@@ -250,7 +250,7 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
           controller: ctrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           style: const TextStyle(
-              color: Color(0xFF00D4FF), fontSize: 14, fontFamily: 'monospace'),
+              color: AppColors.primary, fontSize: 14, fontFamily: 'monospace'),
           decoration: InputDecoration(
             filled: true,
             fillColor: context.bg,
@@ -266,7 +266,7 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF00D4FF)),
+              borderSide: const BorderSide(color: AppColors.primary),
             ),
           ),
         ),
@@ -464,13 +464,13 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
                         if (zone.isDefaultZone)
                           _tag('DEFAULT ZONE', context.borderColor),
                         if (zone.isDynamic)
-                          _tag('🌐 DYNAMIC', const Color(0xFF00D4FF))
+                          _tag('🌐 DYNAMIC', AppColors.primary)
                         else
                           _tag('📁 STATIC', context.borderColor),
                         if (zone.accidentHotspot)
-                          _tag('⚠️ ACCIDENT HOTSPOT', const Color(0xFFFF2D55)),
+                          _tag('⚠️ ACCIDENT HOTSPOT', AppColors.danger),
                         ...zone.timeLabels
-                            .map((l) => _tag(l, const Color(0xFFFF9F0A))),
+                            .map((l) => _tag(l, AppColors.warning)),
                       ],
                     ),
                   ],
@@ -498,7 +498,7 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
             speed.toStringAsFixed(1),
             'km/h',
             (speed / 120).clamp(0.0, 1.0),
-            isOver ? const Color(0xFFFF2D55) : const Color(0xFF00D4FF),
+            isOver ? AppColors.danger : AppColors.primary,
           ),
           const SizedBox(width: 10),
           _statBlock(
@@ -506,7 +506,7 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
             zone.speedLimit.toString(),
             'km/h',
             (zone.speedLimit / 120).clamp(0.0, 1.0),
-            const Color(0xFF30D158),
+            AppColors.safe,
           ),
           const SizedBox(width: 10),
           _statBlock(
@@ -514,7 +514,7 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
             '${zone.penaltyMultiplier}×',
             '× base fine',
             (zone.penaltyMultiplier / 4).clamp(0.0, 1.0),
-            const Color(0xFFFF9F0A),
+            AppColors.warning,
           ),
         ],
       ),
@@ -576,13 +576,13 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
     final penalty = result.penalty;
 
     final bgColor = isOver
-        ? const Color(0xFFFF2D55).withOpacity(0.08)
-        : const Color(0xFF30D158).withOpacity(0.08);
+        ? AppColors.danger.withOpacity(0.08)
+        : AppColors.safe.withOpacity(0.08);
     final borderColor = isOver
-        ? const Color(0xFFFF2D55).withOpacity(0.4)
-        : const Color(0xFF30D158).withOpacity(0.3);
+        ? AppColors.danger.withOpacity(0.4)
+        : AppColors.safe.withOpacity(0.3);
     final titleColor =
-        isOver ? const Color(0xFFFF2D55) : const Color(0xFF30D158);
+        isOver ? AppColors.danger : AppColors.safe;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -634,8 +634,8 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
                 '₹${penalty.toInt()}',
                 style: TextStyle(
                   color: isOver
-                      ? const Color(0xFFFF375F)
-                      : const Color(0xFF30D158),
+                      ? AppColors.danger
+                      : AppColors.safe,
                   fontSize: 32,
                   fontWeight: FontWeight.w900,
                 ),
@@ -686,7 +686,7 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
                 return DataRow(
                   color: WidgetStateProperty.all(
                     isActive
-                        ? const Color(0xFF00D4FF).withOpacity(0.05)
+                        ? AppColors.primary.withOpacity(0.05)
                         : Colors.transparent,
                   ),
                   cells: [
@@ -699,20 +699,20 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
                     DataCell(_riskChip(z.riskLevel)),
                     DataCell(Text('${z.speedLimit} km/h',
                         style: const TextStyle(
-                          color: Color(0xFF00D4FF),
+                          color: AppColors.primary,
                           fontSize: 12,
                           fontFamily: 'monospace',
                         ))),
                     DataCell(Text('${z.penaltyMultiplier}×',
                         style: const TextStyle(
-                          color: Color(0xFFFF9F0A),
+                          color: AppColors.warning,
                           fontSize: 12,
                           fontFamily: 'monospace',
                         ))),
                     DataCell(Text(z.alertStrength,
                         style: TextStyle(
                           color: z.alertStrength == 'STRONG'
-                              ? const Color(0xFFFF2D55)
+                              ? AppColors.danger
                               : context.textMuted,
                           fontSize: 11,
                           fontFamily: 'monospace',
@@ -742,7 +742,7 @@ class _RiskZoneScreenState extends State<RiskZoneScreen> {
         Container(
             width: 20,
             height: 1,
-            color: const Color(0xFF00D4FF).withOpacity(0.6)),
+            color: AppColors.primary.withOpacity(0.6)),
         const SizedBox(width: 8),
         Text(text.toUpperCase(),
             style: TextStyle(
