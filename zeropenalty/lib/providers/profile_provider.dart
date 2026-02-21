@@ -57,6 +57,64 @@ class ProfileProvider extends ChangeNotifier {
     final couponMaps = await DatabaseHelper.getCoupons();
     _coupons = couponMaps.map((m) => Coupon.fromMap(m)).toList();
 
+    // Seed demo coupons if none exist
+    if (_coupons.isEmpty) {
+      final demoCoupons = [
+        Coupon(
+          id: 'demo_fuel',
+          code: 'FUEL100',
+          title: 'Fuel Voucher',
+          offer: '₹100 off on fuel',
+          location: 'HP Petrol Pump, Swargate',
+          unlockedAt: DateTime.now(),
+          expiresAt: DateTime.now().add(const Duration(days: 30)),
+          status: CouponStatus.available,
+          badgeId: 'smooth_rider',
+          emoji: '⛽',
+        ),
+        Coupon(
+          id: 'demo_service',
+          code: 'SERV750',
+          title: 'Free Service',
+          offer: 'Free vehicle health check',
+          location: 'Mahindra Service Center, Pune',
+          unlockedAt: DateTime.now(),
+          expiresAt: DateTime.now().add(const Duration(days: 45)),
+          status: CouponStatus.available,
+          badgeId: 'zone_guardian',
+          emoji: '🔧',
+        ),
+        Coupon(
+          id: 'demo_parking',
+          code: 'PARK300',
+          title: 'Parking Pass',
+          offer: '1 hour free parking',
+          location: 'Phoenix Mall, Viman Nagar',
+          unlockedAt: DateTime.now(),
+          expiresAt: DateTime.now().add(const Duration(days: 15)),
+          status: CouponStatus.available,
+          badgeId: 'cruise_control',
+          emoji: '🅿️',
+        ),
+        Coupon(
+          id: 'demo_insurance',
+          code: 'INSUR5',
+          title: 'Insurance Discount',
+          offer: '5% off next premium',
+          location: 'ICICI Lombard, FC Road',
+          unlockedAt: DateTime.now().subtract(const Duration(days: 10)),
+          expiresAt: DateTime.now().add(const Duration(days: 60)),
+          status: CouponStatus.available,
+          badgeId: 'safe_driver',
+          emoji: '🛡️',
+        ),
+      ];
+      for (final c in demoCoupons) {
+        await DatabaseHelper.insertCoupon(c.toMap());
+      }
+      _coupons = demoCoupons;
+    }
+
     _isLoading = false;
     notifyListeners();
   }

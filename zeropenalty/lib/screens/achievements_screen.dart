@@ -31,7 +31,7 @@ class AchievementsScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(20),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
-                    childAspectRatio: 0.8,
+                    childAspectRatio: 0.7,
                     crossAxisSpacing: 15,
                     mainAxisSpacing: 20,
                   ),
@@ -46,13 +46,18 @@ class AchievementsScreen extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          BadgeWidget(achievement: badge, unlocked: isUnlocked),
-                          const SizedBox(height: 8),
+                          Flexible(
+                            child: BadgeWidget(
+                                achievement: badge, unlocked: isUnlocked),
+                          ),
+                          const SizedBox(height: 6),
                           Text(
                             badge.name,
                             textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: isUnlocked
                                   ? FontWeight.bold
                                   : FontWeight.normal,
