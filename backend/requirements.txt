@@ -6,3 +6,14 @@ pandas==2.1.4
 numpy==1.26.2
 sqlalchemy==2.0.23
 python-multipart==0.0.6
+
+
+# here is the list of all the libraries that are used in the backend of the project
+# 1. fastapi
+# 2. uvicorn
+# 3. pydantic
+# 4. scikit-learn
+# 5. pandas
+# 6. numpy
+# 7. sqlalchemy
+# 8. python-multipart
