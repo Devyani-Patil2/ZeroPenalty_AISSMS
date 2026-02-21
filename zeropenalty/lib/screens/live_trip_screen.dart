@@ -8,6 +8,7 @@ import '../providers/history_provider.dart';
 import '../providers/profile_provider.dart';
 import '../services/risk_zone_service.dart';
 import '../models/risk_zone.dart';
+import '../widgets/app_logo.dart';
 import '../utils/constants.dart';
 
 class LiveTripScreen extends StatefulWidget {
@@ -455,16 +456,17 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
               context, 'Evts', '${trip.events.length}', Icons.warning_amber),
           const SizedBox(width: 8),
           _miniStat(
-              context, 'Score', trip.liveScore.toStringAsFixed(0), Icons.shield,
-              color: AppColors.scoreColor(trip.liveScore)),
+              context, 'Score', trip.liveScore.toStringAsFixed(0), null,
+              color: AppColors.scoreColor(trip.liveScore),
+              customLogo: const AppLogo(size: 14)),
         ],
       ),
     );
   }
 
   Widget _miniStat(
-      BuildContext context, String label, String value, IconData icon,
-      {Color? color}) {
+      BuildContext context, String label, String value, IconData? icon,
+      {Color? color, Widget? customLogo}) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(8),
@@ -475,7 +477,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
         ),
         child: Column(
           children: [
-            Icon(icon, color: color ?? context.textMuted, size: 14),
+            customLogo ?? Icon(icon, color: color ?? context.textMuted, size: 14),
             const SizedBox(height: 4),
             Text(
               value,

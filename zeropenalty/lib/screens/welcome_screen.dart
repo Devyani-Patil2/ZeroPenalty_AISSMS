@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import '../widgets/app_logo.dart';
 import 'splash_screen.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
@@ -41,10 +42,7 @@ class WelcomeScreen extends StatelessWidget {
                   ],
                 ),
                 child: Center(
-                  child: CustomPaint(
-                    size: const Size(85, 95),
-                    painter: ShieldLogoPainter(),
-                  ),
+                  child: const AppLogo(size: 95),
                 ),
               ),
               const SizedBox(height: 28),
