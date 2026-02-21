@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:latlong2/latlong.dart';
 import '../engine/sensor_service.dart';
 import '../engine/event_detector.dart';
 import '../engine/zone_manager.dart';
@@ -43,6 +44,7 @@ class TripProvider extends ChangeNotifier {
   double _distanceKm = 0;
   final List<TripEvent> _events = [];
   final List<String> _recentAlerts = [];
+  final List<LatLng> _pathPoints = [];
   Trip? _lastCompletedTrip;
 
   StreamSubscription? _sensorSub;
@@ -62,6 +64,7 @@ class TripProvider extends ChangeNotifier {
   double get distanceKm => _distanceKm;
   List<TripEvent> get events => List.unmodifiable(_events);
   List<String> get recentAlerts => List.unmodifiable(_recentAlerts);
+  List<LatLng> get pathPoints => List.unmodifiable(_pathPoints);
   Trip? get lastCompletedTrip => _lastCompletedTrip;
   double get currentSpeedLimit => _currentZone?.speedLimit ?? 60;
   bool get isOverspeeding => _currentSpeed > currentSpeedLimit;
@@ -104,6 +107,7 @@ class TripProvider extends ChangeNotifier {
     _eventDetector.reset();
     _events.clear();
     _recentAlerts.clear();
+    _pathPoints.clear();
     _startTime = DateTime.now();
     _currentSpeed = 0;
     _maxSpeed = 0;
@@ -150,6 +154,7 @@ class TripProvider extends ChangeNotifier {
     _speedReadings++;
     _latitude = data.latitude;
     _longitude = data.longitude;
+    _pathPoints.add(LatLng(data.latitude, data.longitude));
 
     // Update zone
     _currentZone = _zoneManager.getCurrentZone(data.latitude, data.longitude);

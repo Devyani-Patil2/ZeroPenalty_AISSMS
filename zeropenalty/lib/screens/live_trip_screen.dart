@@ -1,13 +1,23 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../providers/trip_provider.dart';
 import '../providers/history_provider.dart';
 import '../providers/profile_provider.dart';
 import '../utils/constants.dart';
 
-class LiveTripScreen extends StatelessWidget {
+class LiveTripScreen extends StatefulWidget {
   const LiveTripScreen({super.key});
+
+  @override
+  State<LiveTripScreen> createState() => _LiveTripScreenState();
+}
+
+class _LiveTripScreenState extends State<LiveTripScreen> {
+  final MapController _mapController = MapController();
+  bool _followingUser = true;
 
   @override
   Widget build(BuildContext context) {
@@ -18,15 +28,34 @@ class LiveTripScreen extends StatelessWidget {
         body: SafeArea(
           child: Consumer<TripProvider>(
             builder: (context, trip, _) {
+              // Auto-center map if following enabled
+              if (_followingUser && trip.pathPoints.isNotEmpty) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _mapController.move(trip.pathPoints.last, 16.0);
+                });
+              }
+
               return Column(
                 children: [
                   _buildTopBar(context, trip),
-                  const SizedBox(height: 16),
-                  _buildSpeedometer(context, trip),
-                  const SizedBox(height: 20),
-                  _buildTripStats(context, trip),
-                  const SizedBox(height: 16),
-                  Expanded(child: _buildAlertsFeed(context, trip)),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 16),
+                          _buildSpeedometer(context, trip),
+                          const SizedBox(height: 16),
+                          _buildMapSection(context, trip),
+                          const SizedBox(height: 16),
+                          _buildZoneBadge(context, trip),
+                          const SizedBox(height: 16),
+                          _buildTripStats(context, trip),
+                          const SizedBox(height: 16),
+                          _buildAlertsFeed(context, trip),
+                        ],
+                      ),
+                    ),
+                  ),
                   _buildStopButton(context, trip),
                 ],
               );
@@ -73,7 +102,6 @@ class LiveTripScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          // Demo / Live badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
@@ -132,69 +160,47 @@ class LiveTripScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Speed display
           SizedBox(
-            height: 200,
-            width: double.infinity,
+            height: 120,
             child: CustomPaint(
-              painter: _SpeedometerPainter(ratio: ratio, isOver: isOver, borderColor: context.borderColor),
+              painter: _SpeedometerPainter(
+                  ratio: ratio,
+                  isOver: isOver,
+                  borderColor: context.borderColor),
               child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        speed.toStringAsFixed(0),
-                        style: TextStyle(
-                          color:
-                              isOver ? AppColors.danger : context.textPrimary,
-                          fontSize: 56,
-                          fontWeight: FontWeight.bold,
-                        ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      speed.toStringAsFixed(0),
+                      style: TextStyle(
+                        color:
+                            isOver ? AppColors.danger : context.textPrimary,
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
                       ),
-                      Text(
-                        'km/h',
-                        style:
-                            TextStyle(color: context.textMuted, fontSize: 14),
-                      ),
-                    ],
-                  ),
+                    ),
+                    Text(
+                      'km/h',
+                      style:
+                          TextStyle(color: context.textMuted, fontSize: 12),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          // Speed limit
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.speed, color: context.textMuted, size: 18),
+              Icon(Icons.speed, color: context.textMuted, size: 16),
               const SizedBox(width: 6),
               Text(
                 'Limit: ${limit.toStringAsFixed(0)} km/h',
                 style: TextStyle(
-                    color: context.textSecondary, fontSize: 14),
+                    color: context.textSecondary, fontSize: 12),
               ),
-              if (isOver) ...[
-                const SizedBox(width: 12),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.danger.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '+${(speed - limit).toStringAsFixed(0)} over',
-                    style: const TextStyle(
-                      color: AppColors.danger,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ],
@@ -202,20 +208,164 @@ class LiveTripScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildMapSection(BuildContext context, TripProvider trip) {
+    final path = trip.pathPoints;
+    final currentPos =
+        path.isNotEmpty ? path.last : const LatLng(18.5204, 73.8567);
+
+    return Container(
+      height: 300,
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: context.borderColor),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          children: [
+            FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: currentPos,
+                initialZoom: 16.0,
+                onPositionChanged: (pos, hasGesture) {
+                  if (hasGesture && _followingUser) {
+                    setState(() => _followingUser = false);
+                  }
+                },
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.zeropenalty',
+                ),
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: path,
+                      strokeWidth: 5,
+                      color: AppColors.primary,
+                    ),
+                  ],
+                ),
+                MarkerLayer(
+                  markers: [
+                    if (path.isNotEmpty)
+                      Marker(
+                        point: path.first,
+                        width: 20,
+                        height: 20,
+                        child: const Icon(Icons.location_on,
+                            color: Colors.green, size: 20),
+                      ),
+                    Marker(
+                      point: currentPos,
+                      width: 25,
+                      height: 25,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.3),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.navigation,
+                              color: Colors.blue, size: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            // Map controls
+            Positioned(
+              bottom: 12,
+              right: 12,
+              child: Column(
+                children: [
+                  FloatingActionButton.small(
+                    heroTag: 'recenter',
+                    onPressed: () {
+                      setState(() => _followingUser = true);
+                      if (path.isNotEmpty) {
+                        _mapController.move(path.last, 16.0);
+                      }
+                    },
+                    backgroundColor:
+                        _followingUser ? AppColors.primary : context.cardBg,
+                    child: Icon(Icons.my_location,
+                        color:
+                            _followingUser ? Colors.white : AppColors.primary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildZoneBadge(BuildContext context, TripProvider trip) {
+    final zone = trip.currentZone;
+    if (zone == null) return const SizedBox();
+
+    final color = AppColors.zoneColor(zone.typeString);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            zone.risk.index == 0
+                ? Icons.warning
+                : zone.risk.index == 1
+                    ? Icons.home
+                    : Icons.route,
+            color: color,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  zone.name,
+                  style: TextStyle(
+                      color: color, fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '${zone.riskLabel} • Limit: ${zone.speedLimit.toStringAsFixed(0)} km/h',
+                  style: TextStyle(color: color.withOpacity(0.8), fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildTripStats(BuildContext context, TripProvider trip) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          _miniStat(context, 'Distance', '${trip.distanceKm.toStringAsFixed(1)} km',
+          _miniStat(context, 'Dist', '${trip.distanceKm.toStringAsFixed(1)}km',
               Icons.straighten),
-          const SizedBox(width: 10),
-          _miniStat(context,
-              'Max Speed', '${trip.maxSpeed.toStringAsFixed(0)}', Icons.speed),
-          const SizedBox(width: 10),
-          _miniStat(context, 'Events', '${trip.events.length}', Icons.warning_amber),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
+          _miniStat(context, 'Max', '${trip.maxSpeed.toStringAsFixed(0)}', Icons.speed),
+          const SizedBox(width: 8),
+          _miniStat(context, 'Evts', '${trip.events.length}', Icons.warning_amber),
+          const SizedBox(width: 8),
           _miniStat(context, 'Score', trip.liveScore.toStringAsFixed(0), Icons.shield,
               color: AppColors.scoreColor(trip.liveScore)),
         ],
@@ -223,10 +373,11 @@ class LiveTripScreen extends StatelessWidget {
     );
   }
 
-  Widget _miniStat(BuildContext context, String label, String value, IconData icon, {Color? color}) {
+  Widget _miniStat(BuildContext context, String label, String value, IconData icon,
+      {Color? color}) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: context.surfaceBg,
           borderRadius: BorderRadius.circular(12),
@@ -234,20 +385,20 @@ class LiveTripScreen extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(icon, color: color ?? context.textMuted, size: 18),
-            const SizedBox(height: 6),
+            Icon(icon, color: color ?? context.textMuted, size: 14),
+            const SizedBox(height: 4),
             Text(
               value,
               style: TextStyle(
                 color: color ?? context.textPrimary,
-                fontSize: 16,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(color: context.textMuted, fontSize: 11),
+              style: TextStyle(color: context.textMuted, fontSize: 9),
             ),
           ],
         ),
@@ -257,40 +408,41 @@ class LiveTripScreen extends StatelessWidget {
 
   Widget _buildAlertsFeed(BuildContext context, TripProvider trip) {
     if (trip.recentAlerts.isEmpty) {
-      return const Center(
-        child: Text(
-          '✅ Driving safely',
-          style: TextStyle(color: AppColors.safe, fontSize: 16),
+      return const SizedBox(
+        height: 60,
+        child: Center(
+          child: Text('✅ Driving safely',
+              style: TextStyle(color: AppColors.safe, fontSize: 14)),
         ),
       );
     }
 
-    return ListView.builder(
+    return Container(
+      height: 120,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: trip.recentAlerts.length,
-      itemBuilder: (context, index) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: (index == 0 ? AppColors.danger : AppColors.warning)
-                .withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: (index == 0 ? AppColors.danger : AppColors.warning)
-                  .withOpacity(0.3),
+      child: ListView.builder(
+        itemCount: trip.recentAlerts.length,
+        itemBuilder: (context, index) {
+          final color = index == 0 ? AppColors.danger : AppColors.warning;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: color.withOpacity(0.3)),
             ),
-          ),
-          child: Text(
-            trip.recentAlerts[index],
-            style: TextStyle(
-              color: index == 0 ? AppColors.danger : AppColors.warningLight,
-              fontSize: 13,
-              fontWeight: index == 0 ? FontWeight.w600 : FontWeight.normal,
+            child: Text(
+              trip.recentAlerts[index],
+              style: TextStyle(
+                color: index == 0 ? AppColors.danger : AppColors.warningLight,
+                fontSize: 12,
+                fontWeight: index == 0 ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -312,9 +464,8 @@ class LiveTripScreen extends StatelessWidget {
             backgroundColor: AppColors.danger,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -337,34 +488,27 @@ class _SpeedometerPainter extends CustomPainter {
   final bool isOver;
   final Color borderColor;
 
-  _SpeedometerPainter({required this.ratio, required this.isOver, required this.borderColor});
+  _SpeedometerPainter(
+      {required this.ratio, required this.isOver, required this.borderColor});
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2 + 10);
     final radius = min(size.width, size.height) * 0.42;
-    // 240° arc: starts at 150° (bottom-left) and sweeps 240° clockwise
     const startAngle = pi * 150 / 180; // 150 degrees
     const totalSweep = pi * 240 / 180; // 240 degrees
 
-    // Background arc
     final bgPaint = Paint()
       ..color = borderColor.withOpacity(0.5)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
+      ..strokeWidth = 6
       ..strokeCap = StrokeCap.round;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      totalSweep,
-      false,
-      bgPaint,
-    );
+    canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle,
+        totalSweep, false, bgPaint);
 
-    // Progress arc
     final progressPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
+      ..strokeWidth = 6
       ..strokeCap = StrokeCap.round;
 
     if (isOver) {
@@ -376,13 +520,8 @@ class _SpeedometerPainter extends CustomPainter {
     }
 
     final progress = (ratio.clamp(0.0, 1.5)) / 1.5;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      totalSweep * progress,
-      false,
-      progressPaint,
-    );
+    canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle,
+        totalSweep * progress, false, progressPaint);
   }
 
   @override
