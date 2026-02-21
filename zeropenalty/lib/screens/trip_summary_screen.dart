@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
 import '../engine/scoring_engine.dart';
+import '../main.dart';
 
 class TripSummaryScreen extends StatelessWidget {
   const TripSummaryScreen({super.key});
@@ -11,14 +12,14 @@ class TripSummaryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bg,
       body: SafeArea(
         child: Consumer<TripProvider>(
           builder: (context, trip, _) {
             final t = trip.lastCompletedTrip;
             if (t == null) {
-              return const Center(
-                child: Text('No trip data', style: TextStyle(color: AppColors.textMuted)),
+              return Center(
+                child: Text('No trip data', style: TextStyle(color: context.textMuted)),
               );
             }
 
@@ -29,15 +30,15 @@ class TripSummaryScreen extends StatelessWidget {
                 children: [
                   _buildHeader(context),
                   const SizedBox(height: 24),
-                  _buildScoreRing(score),
+                  _buildScoreRing(context, score),
                   const SizedBox(height: 24),
-                  _buildTripInfo(t),
+                  _buildTripInfo(context, t),
                   const SizedBox(height: 20),
-                  _buildEventBreakdown(t),
+                  _buildEventBreakdown(context, t),
                   const SizedBox(height: 20),
-                  _buildZoneAnalysis(t),
+                  _buildZoneAnalysis(context, t),
                   const SizedBox(height: 20),
-                  _buildFeedback(t),
+                  _buildFeedback(context, t),
                   const SizedBox(height: 20),
                   _buildPointsEarned(t),
                   const SizedBox(height: 24),
@@ -56,10 +57,10 @@ class TripSummaryScreen extends StatelessWidget {
       children: [
         const Icon(Icons.check_circle, color: AppColors.safe, size: 28),
         const SizedBox(width: 10),
-        const Text(
+        Text(
           'Trip Complete!',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: context.textPrimary,
             fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
@@ -68,14 +69,14 @@ class TripSummaryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildScoreRing(double score) {
+  Widget _buildScoreRing(BuildContext context, double score) {
     final color = AppColors.scoreColor(score);
     final grade = ScoringEngine.getColorGrade(score);
 
     return Container(
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
@@ -98,9 +99,9 @@ class TripSummaryScreen extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const Text(
+                    Text(
                       'Safety Score',
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      style: TextStyle(color: context.textMuted, fontSize: 12),
                     ),
                   ],
                 ),
@@ -128,45 +129,45 @@ class TripSummaryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTripInfo(t) {
+  Widget _buildTripInfo(BuildContext context, t) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: context.borderColor),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _infoItem('Duration', t.formattedDuration, Icons.timer),
-          _infoItem('Distance', '${t.distanceKm.toStringAsFixed(1)} km', Icons.straighten),
-          _infoItem('Avg Speed', '${t.avgSpeed.toStringAsFixed(0)} km/h', Icons.speed),
-          _infoItem('Max Speed', '${t.maxSpeed.toStringAsFixed(0)} km/h', Icons.flash_on),
+          _infoItem(context, 'Duration', t.formattedDuration, Icons.timer),
+          _infoItem(context, 'Distance', '${t.distanceKm.toStringAsFixed(1)} km', Icons.straighten),
+          _infoItem(context, 'Avg Speed', '${t.avgSpeed.toStringAsFixed(0)} km/h', Icons.speed),
+          _infoItem(context, 'Max Speed', '${t.maxSpeed.toStringAsFixed(0)} km/h', Icons.flash_on),
         ],
       ),
     );
   }
 
-  Widget _infoItem(String label, String value, IconData icon) {
+  Widget _infoItem(BuildContext context, String label, String value, IconData icon) {
     return Column(
       children: [
         Icon(icon, color: AppColors.accent, size: 20),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: context.textPrimary,
             fontSize: 14,
             fontWeight: FontWeight.bold,
           ),
         ),
-        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+        Text(label, style: TextStyle(color: context.textMuted, fontSize: 11)),
       ],
     );
   }
 
-  Widget _buildEventBreakdown(t) {
+  Widget _buildEventBreakdown(BuildContext context, t) {
     final events = [
       {'label': 'Overspeeding', 'count': t.overspeedCount, 'icon': Icons.speed, 'color': AppColors.danger},
       {'label': 'Harsh Brakes', 'count': t.harshBrakeCount, 'icon': Icons.pan_tool, 'color': AppColors.warning},
@@ -177,17 +178,17 @@ class TripSummaryScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: context.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Event Breakdown',
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.textSecondary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -202,7 +203,7 @@ class TripSummaryScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         e['label'] as String,
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                        style: TextStyle(color: context.textPrimary, fontSize: 14),
                       ),
                     ),
                     Container(
@@ -227,7 +228,7 @@ class TripSummaryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildZoneAnalysis(t) {
+  Widget _buildZoneAnalysis(BuildContext context, t) {
     final zones = [
       {'label': 'High Risk', 'count': t.highRiskEvents, 'color': AppColors.danger},
       {'label': 'Medium Risk', 'count': t.mediumRiskEvents, 'color': AppColors.warning},
@@ -237,17 +238,17 @@ class TripSummaryScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: context.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Zone-wise Analysis',
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.textSecondary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -292,27 +293,27 @@ class TripSummaryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeedback(t) {
+  Widget _buildFeedback(BuildContext context, t) {
     if (t.feedback.isEmpty) return const SizedBox();
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.primary.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.lightbulb, color: AppColors.warningLight, size: 18),
-              SizedBox(width: 8),
+              const Icon(Icons.lightbulb, color: AppColors.warningLight, size: 18),
+              const SizedBox(width: 8),
               Text(
                 'Coaching Tips',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: context.textSecondary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -324,7 +325,7 @@ class TripSummaryScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   f,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, height: 1.4),
+                  style: TextStyle(color: context.textPrimary, fontSize: 13, height: 1.4),
                 ),
               )),
         ],
@@ -365,7 +366,11 @@ class TripSummaryScreen extends StatelessWidget {
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () {
-          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const MainNavigation()),
+            (route) => false,
+          );
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
@@ -393,7 +398,7 @@ class _ScoreRingPainter extends CustomPainter {
 
     // Background
     final bgPaint = Paint()
-      ..color = AppColors.cardBorder
+      ..color = const Color(0xFF3A3E3F)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 10;
     canvas.drawCircle(center, radius, bgPaint);

@@ -35,7 +35,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
     return WillPopScope(
       onWillPop: () async => false, // Prevent back during trip
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: context.bg,
         body: SafeArea(
           child: Consumer<TripProvider>(
             builder: (context, trip, _) {
@@ -53,20 +53,20 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
                       if (!_isFullScreen) _buildTopBar(context, trip),
                       Expanded(
                         child: _isFullScreen
-                            ? _buildMapSection(trip)
+                            ? _buildMapSection(context, trip)
                             : SingleChildScrollView(
                                 child: Column(
                                   children: [
                                     const SizedBox(height: 16),
-                                    _buildSpeedometer(trip),
+                                    _buildSpeedometer(context, trip),
                                     const SizedBox(height: 16),
-                                    _buildMapSection(trip),
+                                    _buildMapSection(context, trip),
                                     const SizedBox(height: 16),
-                                    _buildZoneBadge(trip),
+                                    _buildZoneBadge(context, trip),
                                     const SizedBox(height: 16),
-                                    _buildTripStats(trip),
+                                    _buildTripStats(context, trip),
                                     const SizedBox(height: 16),
-                                    _buildAlertsFeed(trip),
+                                    _buildAlertsFeed(context, trip),
                                   ],
                                 ),
                               ),
@@ -161,8 +161,8 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
           const Spacer(),
           Text(
             '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: context.textPrimary,
               fontSize: 24,
               fontWeight: FontWeight.bold,
               fontFamily: 'monospace',
@@ -173,7 +173,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
     );
   }
 
-  Widget _buildSpeedometer(TripProvider trip) {
+  Widget _buildSpeedometer(BuildContext context, TripProvider trip) {
     final speed = trip.currentSpeed;
     final limit = trip.currentSpeedLimit;
     final isOver = trip.isOverspeeding;
@@ -183,11 +183,11 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color:
-              isOver ? AppColors.danger.withOpacity(0.5) : AppColors.cardBorder,
+              isOver ? AppColors.danger.withOpacity(0.5) : context.borderColor,
           width: isOver ? 2 : 1,
         ),
         boxShadow: isOver
@@ -200,9 +200,12 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
       child: Column(
         children: [
           SizedBox(
-            height: 120, // Reduced height to fit map
+            height: 120,
             child: CustomPaint(
-              painter: _SpeedometerPainter(ratio: ratio, isOver: isOver),
+              painter: _SpeedometerPainter(
+                  ratio: ratio,
+                  isOver: isOver,
+                  borderColor: context.borderColor),
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -210,16 +213,14 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
                     Text(
                       speed.toStringAsFixed(0),
                       style: TextStyle(
-                        color:
-                            isOver ? AppColors.danger : AppColors.textPrimary,
+                        color: isOver ? AppColors.danger : context.textPrimary,
                         fontSize: 48,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const Text(
+                    Text(
                       'km/h',
-                      style:
-                          TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      style: TextStyle(color: context.textMuted, fontSize: 12),
                     ),
                   ],
                 ),
@@ -230,12 +231,11 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.speed, color: AppColors.textMuted, size: 16),
+              Icon(Icons.speed, color: context.textMuted, size: 16),
               const SizedBox(width: 6),
               Text(
                 'Limit: ${limit.toStringAsFixed(0)} km/h',
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 12),
+                style: TextStyle(color: context.textSecondary, fontSize: 12),
               ),
             ],
           ),
@@ -244,7 +244,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
     );
   }
 
-  Widget _buildMapSection(TripProvider trip) {
+  Widget _buildMapSection(BuildContext context, TripProvider trip) {
     final path = trip.pathPoints;
     final currentPos =
         path.isNotEmpty ? path.last : const LatLng(18.5204, 73.8567);
@@ -257,7 +257,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
       decoration: BoxDecoration(
         borderRadius:
             _isFullScreen ? BorderRadius.zero : BorderRadius.circular(24),
-        border: _isFullScreen ? null : Border.all(color: AppColors.cardBorder),
+        border: _isFullScreen ? null : Border.all(color: context.borderColor),
       ),
       child: ClipRRect(
         borderRadius:
@@ -380,7 +380,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
                       }
                     },
                     backgroundColor:
-                        _followingUser ? AppColors.primary : AppColors.card,
+                        _followingUser ? AppColors.primary : context.cardBg,
                     child: Icon(Icons.my_location,
                         color:
                             _followingUser ? Colors.white : AppColors.primary),
@@ -394,7 +394,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
     );
   }
 
-  Widget _buildZoneBadge(TripProvider trip) {
+  Widget _buildZoneBadge(BuildContext context, TripProvider trip) {
     final zone = trip.currentZone;
     if (zone == null) return const SizedBox();
 
@@ -440,48 +440,55 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
     );
   }
 
-  Widget _buildTripStats(TripProvider trip) {
+  Widget _buildTripStats(BuildContext context, TripProvider trip) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          _miniStat('Dist', '${trip.distanceKm.toStringAsFixed(1)}km',
+          _miniStat(context, 'Dist', '${trip.distanceKm.toStringAsFixed(1)}km',
               Icons.straighten),
           const SizedBox(width: 8),
-          _miniStat('Max', '${trip.maxSpeed.toStringAsFixed(0)}', Icons.speed),
+          _miniStat(context, 'Max', '${trip.maxSpeed.toStringAsFixed(0)}',
+              Icons.speed),
           const SizedBox(width: 8),
-          _miniStat('Evts', '${trip.events.length}', Icons.warning_amber),
+          _miniStat(
+              context, 'Evts', '${trip.events.length}', Icons.warning_amber),
           const SizedBox(width: 8),
-          _miniStat('Score', trip.liveScore.toStringAsFixed(0), Icons.shield,
+          _miniStat(
+              context, 'Score', trip.liveScore.toStringAsFixed(0), Icons.shield,
               color: AppColors.scoreColor(trip.liveScore)),
         ],
       ),
     );
   }
 
-  Widget _miniStat(String label, String value, IconData icon, {Color? color}) {
+  Widget _miniStat(
+      BuildContext context, String label, String value, IconData icon,
+      {Color? color}) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(10),
+          color: context.surfaceBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: context.borderColor.withOpacity(0.5)),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color ?? AppColors.textMuted, size: 14),
+            Icon(icon, color: color ?? context.textMuted, size: 14),
             const SizedBox(height: 4),
             Text(
               value,
               style: TextStyle(
-                color: color ?? AppColors.textPrimary,
+                color: color ?? context.textPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 9),
+              style: TextStyle(color: context.textMuted, fontSize: 9),
             ),
           ],
         ),
@@ -489,7 +496,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
     );
   }
 
-  Widget _buildAlertsFeed(TripProvider trip) {
+  Widget _buildAlertsFeed(BuildContext context, TripProvider trip) {
     if (trip.recentAlerts.isEmpty) {
       return const SizedBox(
         height: 60,
@@ -571,26 +578,29 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
   }
 }
 
+/// Custom speedometer arc painter — 240° gauge
 class _SpeedometerPainter extends CustomPainter {
   final double ratio;
   final bool isOver;
+  final Color borderColor;
 
-  _SpeedometerPainter({required this.ratio, required this.isOver});
+  _SpeedometerPainter(
+      {required this.ratio, required this.isOver, required this.borderColor});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height * 0.85);
-    final radius = size.width * 0.42;
-    const startAngle = -pi * 0.85;
-    const sweepAngle = pi * 0.7;
+    final center = Offset(size.width / 2, size.height / 2 + 10);
+    final radius = min(size.width, size.height) * 0.42;
+    const startAngle = pi * 150 / 180; // 150 degrees
+    const totalSweep = pi * 240 / 180; // 240 degrees
 
     final bgPaint = Paint()
-      ..color = AppColors.cardBorder
+      ..color = borderColor.withOpacity(0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6
       ..strokeCap = StrokeCap.round;
     canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle,
-        sweepAngle * 2, false, bgPaint);
+        totalSweep, false, bgPaint);
 
     final progressPaint = Paint()
       ..style = PaintingStyle.stroke
@@ -605,9 +615,9 @@ class _SpeedometerPainter extends CustomPainter {
       ).createShader(Rect.fromCircle(center: center, radius: radius));
     }
 
-    final progress = (ratio.clamp(0, 1.5)) / 1.5;
+    final progress = (ratio.clamp(0.0, 1.5)) / 1.5;
     canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle,
-        sweepAngle * 2 * progress, false, progressPaint);
+        totalSweep * progress, false, progressPaint);
   }
 
   @override
