@@ -232,13 +232,13 @@ class RewardsScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.15),
+              color: AppColors.primary.withOpacity(0.12),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               cost,
-              style: TextStyle(
-                color: AppColors.primaryLight,
+              style: const TextStyle(
+                color: AppColors.primary,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),

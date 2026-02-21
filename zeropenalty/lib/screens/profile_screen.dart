@@ -165,10 +165,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 30),
 
-                  // ── Theme Toggle ──
-                  _buildThemeToggle(),
-                  const SizedBox(height: 16),
-
                   // ── Sign Out Button ──
                   _buildSignOutButton(),
                   const SizedBox(height: 16),

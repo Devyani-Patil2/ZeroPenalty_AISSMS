@@ -161,7 +161,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          AppColors.primary.withOpacity(0.3),
+                          AppColors.primary.withOpacity(0.35),
                           AppColors.primary.withOpacity(0.0),
                         ],
                       ),
