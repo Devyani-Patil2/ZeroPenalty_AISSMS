@@ -23,11 +23,10 @@ class RewardsScreen extends StatelessWidget {
               final availableCoupons = provider.coupons
                   .where((c) => c.status == CouponStatus.available)
                   .length;
-
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CustomHeader(title: 'Rewards'),
+                  const CustomHeader(title: 'Your Rewards'),
                   const SizedBox(height: 20),
                   _buildTierCard(context, p.tier, p.lifetimeAvgScore),
                   const SizedBox(height: 20),
@@ -36,7 +35,6 @@ class RewardsScreen extends StatelessWidget {
                   _buildNavGrid(context, p, availableCoupons),
                   const SizedBox(height: 24),
                   _buildRedemptionSection(context),
-                  const SizedBox(height: 100),
                 ],
               );
             },
@@ -46,76 +44,90 @@ class RewardsScreen extends StatelessWidget {
     );
   }
 
-  // ── Safe Driver / Tier Card (from teammate's UI) ──
   Widget _buildTierCard(BuildContext context, String tier, double avgScore) {
-    final tierLabel = _getTierLabel(tier);
-    final tierMessage = _getTierMessage(tier);
+    Color tierColor;
+    IconData tierIcon;
+    String tierDesc;
+    double nextThreshold;
+
+    switch (tier) {
+      case 'Safe Driver':
+        tierColor = AppColors.safe;
+        tierIcon = Icons.verified;
+        tierDesc = 'You are a safe driver! Keep up the excellent work.';
+        nextThreshold = 100;
+        break;
+      case 'Improving':
+        tierColor = AppColors.warning;
+        tierIcon = Icons.trending_up;
+        tierDesc =
+            'You\'re getting better! Score avg 80+ to become a Safe Driver.';
+        nextThreshold = 80;
+        break;
+      default:
+        tierColor = AppColors.danger;
+        tierIcon = Icons.warning;
+        tierDesc = 'Focus on safe driving to improve your tier.';
+        nextThreshold = 50;
+    }
+
+    final progress = (avgScore / nextThreshold).clamp(0.0, 1.0);
 
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary.withOpacity(0.7)],
+          colors: [tierColor.withOpacity(0.15), context.cardBg],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: tierColor.withOpacity(0.3)),
       ),
       child: Column(
         children: [
-          const Icon(Icons.verified, color: Colors.white, size: 48),
+          Icon(tierIcon, color: tierColor, size: 48),
           const SizedBox(height: 12),
           Text(
-            tierLabel,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
+            tier,
+            style: TextStyle(
+              color: tierColor,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            tierMessage,
+            tierDesc,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
+            style: TextStyle(color: context.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 16),
-          // Progress bar
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
-              value: (avgScore / 100).clamp(0.0, 1.0),
-              backgroundColor: Colors.white24,
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              value: progress,
               minHeight: 8,
+              backgroundColor: context.borderColor,
+              valueColor: AlwaysStoppedAnimation(tierColor),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Avg: ${avgScore.toStringAsFixed(0)} / 100',
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            'Avg: ${avgScore.toStringAsFixed(0)} / ${nextThreshold.toStringAsFixed(0)}',
+            style: TextStyle(color: context.textMuted, fontSize: 12),
           ),
         ],
       ),
     );
   }
 
-  // ── Total Points Card (from teammate's UI) ──
-  Widget _buildPointsCard(BuildContext context, int totalPoints) {
+  Widget _buildPointsCard(BuildContext context, int points) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: context.cardBg,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.borderColor),
       ),
       child: Row(
@@ -123,22 +135,24 @@ class RewardsScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(14),
+              color: AppColors.warningLight.withOpacity(0.15),
+              shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.star, color: AppColors.primary, size: 28),
+            child: const Icon(Icons.stars,
+                color: AppColors.warningLight, size: 28),
           ),
           const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Total Points',
-                  style: TextStyle(color: context.textSecondary, fontSize: 14)),
-              const SizedBox(height: 4),
               Text(
-                '$totalPoints',
-                style: TextStyle(
-                  color: context.textPrimary,
+                'Total Points',
+                style: TextStyle(color: context.textMuted, fontSize: 13),
+              ),
+              Text(
+                '$points',
+                style: const TextStyle(
+                  color: AppColors.warningLight,
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
@@ -150,7 +164,7 @@ class RewardsScreen extends StatelessWidget {
     );
   }
 
-  // ── Achievements & Coupons Grid (from user's code) ──
+  // ── Achievements & Coupons (your feature) ──
   Widget _buildNavGrid(BuildContext context, dynamic profile, int couponCount) {
     return Row(
       children: [
@@ -230,39 +244,7 @@ class RewardsScreen extends StatelessWidget {
     );
   }
 
-  // ── Redeem Rewards Section (from teammate's UI) ──
   Widget _buildRedemptionSection(BuildContext context) {
-    final rewards = [
-      {
-        'icon': Icons.local_gas_station,
-        'title': 'Fuel Voucher',
-        'desc': '₹100 fuel discount',
-        'pts': 500,
-        'color': Colors.green
-      },
-      {
-        'icon': Icons.shield,
-        'title': 'Insurance Discount',
-        'desc': '5% off next premium',
-        'pts': 1000,
-        'color': Colors.blue
-      },
-      {
-        'icon': Icons.build,
-        'title': 'Service Coupon',
-        'desc': 'Free vehicle health check',
-        'pts': 750,
-        'color': Colors.purple
-      },
-      {
-        'icon': Icons.local_parking,
-        'title': 'Parking Pass',
-        'desc': 'Free parking for 1 day',
-        'pts': 300,
-        'color': Colors.red
-      },
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -274,35 +256,37 @@ class RewardsScreen extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 15),
-        ...rewards.map((r) => _rewardTile(
-              context,
-              r['icon'] as IconData,
-              r['title'] as String,
-              r['desc'] as String,
-              r['pts'] as int,
-              r['color'] as Color,
-            )),
+        const SizedBox(height: 12),
+        _rewardCard(context, 'Fuel Voucher', '₹100 fuel discount', '500 pts',
+            Icons.local_gas_station, AppColors.accent),
+        const SizedBox(height: 10),
+        _rewardCard(context, 'Insurance Discount', '5% off next premium',
+            '1000 pts', Icons.security, AppColors.safe),
+        const SizedBox(height: 10),
+        _rewardCard(context, 'Service Coupon', 'Free vehicle health check',
+            '750 pts', Icons.build, AppColors.primaryLight),
+        const SizedBox(height: 10),
+        _rewardCard(context, 'Parking Pass', '1 hour free parking', '300 pts',
+            Icons.local_parking, AppColors.warningLight),
       ],
     );
   }
 
-  Widget _rewardTile(BuildContext context, IconData icon, String title,
-      String desc, int pts, Color color) {
+  Widget _rewardCard(BuildContext context, String title, String desc,
+      String cost, IconData icon, Color color) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: context.cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.borderColor),
+        color: context.surfaceBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.borderColor.withOpacity(0.5)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -312,54 +296,38 @@ class RewardsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: TextStyle(
-                        color: context.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15)),
-                const SizedBox(height: 2),
-                Text(desc,
-                    style:
-                        TextStyle(color: context.textSecondary, fontSize: 12)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: context.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  desc,
+                  style: TextStyle(color: context.textMuted, fontSize: 12),
+                ),
               ],
             ),
           ),
-          Text(
-            '$pts pts',
-            style: const TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              cost,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _getTierLabel(String tier) {
-    switch (tier.toLowerCase()) {
-      case 'pro':
-        return 'Pro Driver';
-      case 'expert':
-        return 'Expert Driver';
-      case 'improving':
-        return 'Improving Driver';
-      default:
-        return 'Safe Driver';
-    }
-  }
-
-  String _getTierMessage(String tier) {
-    switch (tier.toLowerCase()) {
-      case 'pro':
-        return 'Outstanding! You are a top-tier driver!';
-      case 'expert':
-        return 'Great driving! Keep up the excellent work.';
-      case 'improving':
-        return 'You are getting better! Keep practicing safe driving.';
-      default:
-        return 'You are a safe driver! Keep up the excellent work.';
-    }
   }
 }
