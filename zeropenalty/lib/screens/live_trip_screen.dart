@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import '../providers/trip_provider.dart';
 import '../providers/history_provider.dart';
 import '../providers/profile_provider.dart';
+import '../services/risk_zone_service.dart';
+import '../models/risk_zone.dart';
 import '../utils/constants.dart';
 
 class LiveTripScreen extends StatefulWidget {
@@ -18,6 +20,15 @@ class LiveTripScreen extends StatefulWidget {
 class _LiveTripScreenState extends State<LiveTripScreen> {
   final MapController _mapController = MapController();
   bool _followingUser = true;
+  bool _isFullScreen = false;
+  final RiskZoneService _zoneService = RiskZoneService();
+  List<RiskZone> _allZones = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _allZones = _zoneService.getAllZones();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,28 +46,48 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
                 });
               }
 
-              return Column(
+              return Stack(
                 children: [
-                  _buildTopBar(context, trip),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 16),
-                          _buildSpeedometer(trip),
-                          const SizedBox(height: 16),
-                          _buildMapSection(trip),
-                          const SizedBox(height: 16),
-                          _buildZoneBadge(trip),
-                          const SizedBox(height: 16),
-                          _buildTripStats(trip),
-                          const SizedBox(height: 16),
-                          _buildAlertsFeed(trip),
-                        ],
+                  Column(
+                    children: [
+                      if (!_isFullScreen) _buildTopBar(context, trip),
+                      Expanded(
+                        child: _isFullScreen
+                            ? _buildMapSection(trip)
+                            : SingleChildScrollView(
+                                child: Column(
+                                  children: [
+                                    const SizedBox(height: 16),
+                                    _buildSpeedometer(trip),
+                                    const SizedBox(height: 16),
+                                    _buildMapSection(trip),
+                                    const SizedBox(height: 16),
+                                    _buildZoneBadge(trip),
+                                    const SizedBox(height: 16),
+                                    _buildTripStats(trip),
+                                    const SizedBox(height: 16),
+                                    _buildAlertsFeed(trip),
+                                  ],
+                                ),
+                              ),
                       ),
-                    ),
+                      if (!_isFullScreen) _buildStopButton(context, trip),
+                    ],
                   ),
-                  _buildStopButton(context, trip),
+                  if (_isFullScreen)
+                    Positioned(
+                      top: 40,
+                      left: 20,
+                      right: 20,
+                      child: _buildTopBar(context, trip, isOverlay: true),
+                    ),
+                  if (_isFullScreen)
+                    Positioned(
+                      bottom: 20,
+                      left: 20,
+                      right: 20,
+                      child: _buildStopButton(context, trip, isOverlay: true),
+                    ),
                 ],
               );
             },
@@ -66,11 +97,19 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
     );
   }
 
-  Widget _buildTopBar(BuildContext context, TripProvider trip) {
+  Widget _buildTopBar(BuildContext context, TripProvider trip,
+      {bool isOverlay = false}) {
     final minutes = trip.tripDuration ~/ 60;
     final seconds = trip.tripDuration % 60;
-    return Padding(
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      decoration: isOverlay
+          ? BoxDecoration(
+              color: AppColors.background.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.cardBorder),
+            )
+          : null,
       child: Row(
         children: [
           Container(
@@ -211,14 +250,18 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
         path.isNotEmpty ? path.last : const LatLng(18.5204, 73.8567);
 
     return Container(
-      height: 300,
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      height: _isFullScreen ? double.infinity : 300,
+      margin: _isFullScreen
+          ? EdgeInsets.zero
+          : const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.cardBorder),
+        borderRadius:
+            _isFullScreen ? BorderRadius.zero : BorderRadius.circular(24),
+        border: _isFullScreen ? null : Border.all(color: AppColors.cardBorder),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius:
+            _isFullScreen ? BorderRadius.zero : BorderRadius.circular(24),
         child: Stack(
           children: [
             FlutterMap(
@@ -237,6 +280,20 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.example.zeropenalty',
                 ),
+                // Risk Zones Circles
+                CircleLayer(
+                  circles: _allZones
+                      .map((z) => CircleMarker(
+                            point: LatLng(z.latitude, z.longitude),
+                            radius: z.radius,
+                            useRadiusInMeter: true,
+                            color: AppColors.zoneColor(z.riskLevel)
+                                .withOpacity(0.3),
+                            borderColor: AppColors.zoneColor(z.riskLevel),
+                            borderStrokeWidth: 2,
+                          ))
+                      .toList(),
+                ),
                 PolylineLayer(
                   polylines: [
                     Polyline(
@@ -248,6 +305,26 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
                 ),
                 MarkerLayer(
                   markers: [
+                    // Zone Labels
+                    ..._allZones.map((z) => Marker(
+                          point: LatLng(z.latitude, z.longitude),
+                          width: 100,
+                          height: 30,
+                          child: IgnorePointer(
+                            child: Text(
+                              z.name,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: AppColors.zoneColor(z.riskLevel),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                shadows: const [
+                                  Shadow(blurRadius: 2, color: Colors.black)
+                                ],
+                              ),
+                            ),
+                          ),
+                        )),
                     if (path.isNotEmpty)
                       Marker(
                         point: path.first,
@@ -278,10 +355,22 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
             ),
             // Map controls
             Positioned(
-              bottom: 12,
+              bottom: _isFullScreen ? 120 : 12,
               right: 12,
               child: Column(
                 children: [
+                  FloatingActionButton.small(
+                    heroTag: 'fullscreen',
+                    onPressed: () =>
+                        setState(() => _isFullScreen = !_isFullScreen),
+                    backgroundColor: AppColors.card,
+                    child: Icon(
+                        _isFullScreen
+                            ? Icons.fullscreen_exit
+                            : Icons.fullscreen,
+                        color: AppColors.primary),
+                  ),
+                  const SizedBox(height: 8),
                   FloatingActionButton.small(
                     heroTag: 'recenter',
                     onPressed: () {
@@ -440,9 +529,10 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
     );
   }
 
-  Widget _buildStopButton(BuildContext context, TripProvider trip) {
+  Widget _buildStopButton(BuildContext context, TripProvider trip,
+      {bool isOverlay = false}) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: isOverlay ? EdgeInsets.zero : const EdgeInsets.all(20),
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
@@ -458,8 +548,13 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
             backgroundColor: AppColors.danger,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: isOverlay
+                  ? const BorderSide(color: Colors.white24)
+                  : BorderSide.none,
+            ),
+            elevation: isOverlay ? 8 : 0,
           ),
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.center,
