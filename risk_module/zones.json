@@ -1,0 +1,124 @@
+{
+  "zones": [
+    {
+      "id": "zone_001",
+      "name": "Pune Railway Station Zone",
+      "risk_level": "HIGH",
+      "speed_limit": 20,
+      "penalty_multiplier": 3.0,
+      "alert_strength": "STRONG",
+      "latitude": 18.5284,
+      "longitude": 73.8742,
+      "radius": 300,
+      "description": "Dense pedestrian and vehicle traffic near the main railway station"
+    },
+    {
+      "id": "zone_002",
+      "name": "FC Road School Zone",
+      "risk_level": "HIGH",
+      "speed_limit": 15,
+      "penalty_multiplier": 3.5,
+      "alert_strength": "STRONG",
+      "latitude": 18.5185,
+      "longitude": 73.8416,
+      "radius": 250,
+      "description": "Active school zone on Fergusson College Road — children crossing frequently"
+    },
+    {
+      "id": "zone_003",
+      "name": "Laxmi Road Market Zone",
+      "risk_level": "HIGH",
+      "speed_limit": 20,
+      "penalty_multiplier": 2.5,
+      "alert_strength": "STRONG",
+      "latitude": 18.5162,
+      "longitude": 73.8570,
+      "radius": 400,
+      "description": "Busy commercial market area with high pedestrian and two-wheeler density"
+    },
+    {
+      "id": "zone_004",
+      "name": "Shivajinagar Hospital Zone",
+      "risk_level": "HIGH",
+      "speed_limit": 20,
+      "penalty_multiplier": 3.0,
+      "alert_strength": "STRONG",
+      "latitude": 18.5308,
+      "longitude": 73.8474,
+      "radius": 200,
+      "description": "Hospital zone — noise and speed restrictions strictly enforced"
+    },
+    {
+      "id": "zone_005",
+      "name": "Hinjewadi IT Park Zone",
+      "risk_level": "MEDIUM",
+      "speed_limit": 40,
+      "penalty_multiplier": 1.8,
+      "alert_strength": "STRONG",
+      "latitude": 18.5912,
+      "longitude": 73.7389,
+      "radius": 600,
+      "description": "IT corridor with peak-hour office traffic — moderate risk during rush hours"
+    },
+    {
+      "id": "zone_006",
+      "name": "Viman Nagar Residential Zone",
+      "risk_level": "MEDIUM",
+      "speed_limit": 30,
+      "penalty_multiplier": 1.5,
+      "alert_strength": "NORMAL",
+      "latitude": 18.5679,
+      "longitude": 73.9143,
+      "radius": 500,
+      "description": "Residential zone with children, elderly, and internal colony traffic"
+    },
+    {
+      "id": "zone_007",
+      "name": "Katraj Ghat Blind Curve Zone",
+      "risk_level": "HIGH",
+      "speed_limit": 25,
+      "penalty_multiplier": 2.8,
+      "alert_strength": "STRONG",
+      "latitude": 18.4534,
+      "longitude": 73.8674,
+      "radius": 350,
+      "description": "Sharp curves and accident-prone ghat section — requires extreme caution"
+    },
+    {
+      "id": "zone_008",
+      "name": "Koregaon Park Nightlife Zone",
+      "risk_level": "MEDIUM",
+      "speed_limit": 35,
+      "penalty_multiplier": 2.0,
+      "alert_strength": "STRONG",
+      "latitude": 18.5362,
+      "longitude": 73.8931,
+      "radius": 450,
+      "description": "High pedestrian activity at night — elevated DUI and speed risk"
+    },
+    {
+      "id": "zone_009",
+      "name": "Hadapsar Industrial Zone",
+      "risk_level": "LOW",
+      "speed_limit": 50,
+      "penalty_multiplier": 1.2,
+      "alert_strength": "NORMAL",
+      "latitude": 18.5089,
+      "longitude": 73.9259,
+      "radius": 700,
+      "description": "Industrial area with moderate heavy-vehicle movement"
+    },
+    {
+      "id": "zone_010",
+      "name": "Baner Road Construction Zone",
+      "risk_level": "HIGH",
+      "speed_limit": 20,
+      "penalty_multiplier": 2.5,
+      "alert_strength": "STRONG",
+      "latitude": 18.5590,
+      "longitude": 73.7868,
+      "radius": 300,
+      "description": "Active construction zone — uneven road surface and reduced lane width"
+    }
+  ]
+}
