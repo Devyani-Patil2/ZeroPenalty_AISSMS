@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/history_provider.dart';
+import '../engine/scoring_engine.dart';
+import '../widgets/app_logo.dart';
 import '../utils/constants.dart';
+import '../widgets/custom_header.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -32,15 +35,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Trip History',
-                    style: TextStyle(
-                      color: context.textPrimary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                   const CustomHeader(title: 'Trip History'),
+                   const SizedBox(height: 20),
                   _buildScoreChart(history),
                   const SizedBox(height: 20),
                   _buildStatsRow(history),

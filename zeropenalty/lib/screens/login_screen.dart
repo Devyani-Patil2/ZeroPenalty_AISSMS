@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
 import '../main.dart';
 import 'signup_screen.dart';
+import '../widgets/app_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -85,11 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.shield_rounded,
-                      size: 45,
-                      color: Colors.white,
-                    ),
+                    child: const AppLogo(size: 60),
                   ),
                 ),
                 const SizedBox(height: 28),

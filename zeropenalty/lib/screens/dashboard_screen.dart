@@ -7,6 +7,8 @@ import '../providers/profile_provider.dart';
 import '../providers/theme_provider.dart';
 import '../utils/constants.dart';
 import '../engine/scoring_engine.dart';
+import '../widgets/app_logo.dart';
+import '../widgets/custom_header.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -54,70 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildHeader() {
     return Consumer<ProfileProvider>(
       builder: (context, profile, _) {
-        return Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.accent],
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(Icons.shield, color: Colors.white, size: 28),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Hi, ${profile.profile.name}! 👋',
-                    style: TextStyle(
-                      color: context.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    profile.profile.tier,
-                    style: TextStyle(
-                      color: AppColors.scoreColor(
-                          profile.profile.lifetimeAvgScore),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Theme toggle icon
-            Consumer<ThemeProvider>(
-              builder: (context, themeProvider, _) {
-                return GestureDetector(
-                  onTap: () => themeProvider.toggleTheme(),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: context.cardBg,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: context.borderColor),
-                    ),
-                    child: Icon(
-                      themeProvider.isDarkMode
-                          ? Icons.light_mode_rounded
-                          : Icons.dark_mode_rounded,
-                      color: themeProvider.isDarkMode
-                          ? AppColors.warningLight
-                          : AppColors.primary,
-                      size: 22,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        );
+        return CustomHeader(title: 'Hi, ${profile.profile.name}! 👋');
       },
     );
   }
