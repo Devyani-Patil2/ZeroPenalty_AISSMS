@@ -1,11 +1,24 @@
 import 'package:flutter/services.dart';
+import '../utils/constants.dart';
 
 /// Manages real-time alerts: voice (TTS), vibration, and text overlay
 class AlertManager {
   DateTime? _lastAlertTime;
+  DateTime? _lastVoiceAlertTime;
+
+  bool canSpeak(DateTime now) {
+    if (_lastVoiceAlertTime == null) return true;
+    return now.difference(_lastVoiceAlertTime!).inMilliseconds >=
+        AppConstants.voiceCooldownMs;
+  }
+
+  void recordVoiceAlert(DateTime now) {
+    _lastVoiceAlertTime = now;
+  }
 
   /// Generate alert text for an event
-  String getAlertText(String eventType, {double? speed, double? limit, String? zone}) {
+  String getAlertText(String eventType,
+      {double? speed, double? limit, String? zone}) {
     switch (eventType) {
       case 'overspeed':
         if (zone == 'HIGH_RISK') {

@@ -547,6 +547,10 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
             final completedTrip = await trip.stopTrip();
             if (context.mounted) {
               context.read<HistoryProvider>().addTrip(completedTrip);
+              // Process achievements before refresh
+              await context
+                  .read<ProfileProvider>()
+                  .processTripStats(completedTrip);
               context.read<ProfileProvider>().refresh();
               Navigator.pushReplacementNamed(context, '/summary');
             }

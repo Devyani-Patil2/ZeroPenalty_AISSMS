@@ -139,6 +139,45 @@ class RiskZoneService {
       "description":
           "Active construction zone — uneven road surface and reduced lane width"
     },
+    // ── Demo-area zones (visible on map during demo route) ──
+    {
+      "id": "zone_011",
+      "name": "AISSMS College Zone",
+      "risk_level": "HIGH",
+      "speed_limit": 20,
+      "penalty_multiplier": 3.0,
+      "alert_strength": "STRONG",
+      "latitude": 18.5165,
+      "longitude": 73.8565,
+      "radius": 200,
+      "description":
+          "College zone — students crossing frequently, strict speed enforcement"
+    },
+    {
+      "id": "zone_012",
+      "name": "Shaniwar Wada Tourist Zone",
+      "risk_level": "MEDIUM",
+      "speed_limit": 25,
+      "penalty_multiplier": 2.0,
+      "alert_strength": "STRONG",
+      "latitude": 18.5205,
+      "longitude": 73.8535,
+      "radius": 250,
+      "description": "Tourist area near Shaniwar Wada — pedestrian heavy zone"
+    },
+    {
+      "id": "zone_013",
+      "name": "Bajirao Road Speed Trap",
+      "risk_level": "HIGH",
+      "speed_limit": 30,
+      "penalty_multiplier": 2.5,
+      "alert_strength": "STRONG",
+      "latitude": 18.5150,
+      "longitude": 73.8570,
+      "radius": 300,
+      "description":
+          "Speed enforcement zone on Bajirao Road — frequent overspeeding violations"
+    },
   ];
 
   static final RiskZone _defaultZone = const RiskZone(

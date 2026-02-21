@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DriveGuard – Smart Trip Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #111827;
+    --card: #1a2235;
+    --border: #243049;
+    --accent: #00d4ff;
+    --green: #00e676;
+    --yellow: #ffd600;
+    --red: #ff3d57;
+    --orange: #ff6d00;
+    --text: #e8eaf0;
+    --muted: #6b7a99;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 40px;
+    background-image: radial-gradient(ellipse at 20% 0%, rgba(0,212,255,0.06) 0%, transparent 60%),
+                      radial-gradient(ellipse at 80% 100%, rgba(0,230,118,0.04) 0%, transparent 60%);
+  }
+
+  h1 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    background: linear-gradient(135deg, var(--accent), var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* MAP */
+  .map-wrap {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    height: 260px;
+  }
+
+  canvas#mapCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .map-overlay {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(10,14,26,0.85);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px 12px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent);
+    backdrop-filter: blur(8px);
+  }
+
+  /* ALERT BANNER */
+  .alert-banner {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    font-weight: 500;
+    font-size: 0.92rem;
+    animation: slideIn 0.3s ease;
+    border: 1px solid transparent;
+  }
+
+  .alert-banner.warning {
+    background: rgba(255,109,0,0.15);
+    border-color: var(--orange);
+    color: #ffb74d;
+  }
+
+  .alert-banner.danger {
+    background: rgba(255,61,87,0.15);
+    border-color: var(--red);
+    color: #ff8a9b;
+  }
+
+  .alert-banner.info {
+    background: rgba(0,212,255,0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .alert-icon { font-size: 1.4rem; flex-shrink: 0; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* SPEED CONTROL */
+  .speed-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px;
+  }
+
+  .speed-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+  }
+
+  .speed-label span:first-child {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .speed-value {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .speed-value span { font-size: 1rem; color: var(--muted); font-weight: 400; }
+
+  input[type=range] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px rgba(0,212,255,0.5);
+    cursor: pointer;
+  }
+
+  .speed-zones {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  /* STATS ROW */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 12px;
+    text-align: center;
+  }
+
+  .stat-icon { font-size: 1.3rem; margin-bottom: 4px; }
+
+  .stat-val {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+
+  /* SCORE GAUGE */
+  .score-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .gauge-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 90px;
+    height: 90px;
+  }
+
+  .gauge-wrap svg { transform: rotate(-90deg); }
+
+  .gauge-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .gauge-num {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .gauge-sub { font-size: 0.65rem; color: var(--muted); }
+
+  .score-info { flex: 1; }
+
+  .score-info h3 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .reward-row, .penalty-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.83rem;
+    padding: 3px 0;
+  }
+
+  .reward-row span:last-child { color: var(--green); font-weight: 600; }
+  .penalty-row span:last-child { color: var(--red); font-weight: 600; }
+
+  /* BUTTONS */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 14px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-start {
+    background: linear-gradient(135deg, var(--accent), #0088aa);
+    color: #000;
+  }
+
+  .btn-start:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,212,255,0.3); }
+
+  .btn-reset {
+    background: var(--card);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-reset:hover { border-color: var(--muted); color: var(--text); }
+
+  /* TRIP DETAILS */
+  .trip-details {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 18px;
+  }
+
+  .trip-details h3 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 0.88rem;
+  }
+
+  .detail-row:last-child { border-bottom: none; }
+  .detail-row span:last-child { font-weight: 500; color: var(--text); }
+
+  /* EVENT LOG */
+  .event-log {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 18px;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+
+  .event-log h3 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .log-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 0.82rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    animation: fadeIn 0.3s ease;
+  }
+
+  .log-item:last-child { border-bottom: none; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; } to { opacity: 1; }
+  }
+
+  .log-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .log-time { color: var(--muted); flex-shrink: 0; }
+
+  /* PULSE on car */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  .status-badge.active { background: rgba(0,230,118,0.15); color: var(--green); }
+  .status-badge.idle { background: rgba(107,122,153,0.15); color: var(--muted); }
+  .status-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 1.5s infinite;
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<h1>DRIVEGUARD</h1>
+<div class="subtitle">Smart Trip Safety Simulator</div>
+
+<div class="app">
+
+  <!-- MAP -->
+  <div class="map-wrap">
+    <canvas id="mapCanvas"></canvas>
+    <div class="map-overlay" id="mapLabel">📍 Point A → B</div>
+  </div>
+
+  <!-- ALERT BANNER -->
+  <div class="alert-banner" id="alertBanner">
+    <span class="alert-icon" id="alertIcon">⚠️</span>
+    <span id="alertText">Alert</span>
+  </div>
+
+  <!-- SPEED -->
+  <div class="speed-panel">
+    <div class="speed-label">
+      <span>Your Speed</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="tripStatus" class="status-badge idle">Idle</span>
+        <div class="speed-value" id="speedDisplay">0 <span>mph</span></div>
+      </div>
+    </div>
+    <input type="range" id="speedSlider" min="0" max="100" value="0">
+    <div class="speed-zones">
+      <span>0</span><span style="color:var(--green)">▲ Safe ≤45</span><span style="color:var(--orange)">⚠ 45–65</span><span style="color:var(--red)">🚫 65+</span><span>100</span>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon">⏱️</div>
+      <div class="stat-val" id="statTime">0:00</div>
+      <div class="stat-label">Duration</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📍</div>
+      <div class="stat-val" id="statDist">0.0</div>
+      <div class="stat-label">Miles</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">⚡</div>
+      <div class="stat-val" id="statEvents">0</div>
+      <div class="stat-label">Events</div>
+    </div>
+  </div>
+
+  <!-- SCORE -->
+  <div class="score-panel">
+    <div class="gauge-wrap">
+      <svg width="90" height="90" viewBox="0 0 90 90">
+        <circle cx="45" cy="45" r="38" fill="none" stroke="#243049" stroke-width="8"/>
+        <circle id="gaugeArc" cx="45" cy="45" r="38" fill="none" stroke="#00d4ff" stroke-width="8"
+          stroke-linecap="round" stroke-dasharray="239" stroke-dashoffset="57"/>
+      </svg>
+      <div class="gauge-text">
+        <div class="gauge-num" id="scoreNum">76</div>
+        <div class="gauge-sub">SCORE</div>
+      </div>
+    </div>
+    <div class="score-info">
+      <h3>Rewards & Penalties</h3>
+      <div class="reward-row"><span>🏅 Smooth Drive</span><span id="rewardVal">+$0.00</span></div>
+      <div class="reward-row"><span>🎯 Zone Safe Pass</span><span id="zoneReward">+$0.00</span></div>
+      <div class="penalty-row"><span>⚡ Hard Brake</span><span id="penaltyBrake">-$0.00</span></div>
+      <div class="penalty-row"><span>🚨 Speeding</span><span id="penaltySpeed">-$0.00</span></div>
+    </div>
+  </div>
+
+  <!-- BUTTONS -->
+  <div class="btn-row">
+    <button class="btn btn-start" id="startBtn" onclick="startTrip()">▶ Start Trip</button>
+    <button class="btn btn-reset" onclick="resetTrip()">↺ Reset</button>
+  </div>
+
+  <!-- TRIP DETAILS -->
+  <div class="trip-details">
+    <h3>📋 Trip Details</h3>
+    <div class="detail-row"><span>Route</span><span>Point A → Point B</span></div>
+    <div class="detail-row"><span>Distance</span><span id="detailDist">2.5 mi</span></div>
+    <div class="detail-row"><span>Avg Speed</span><span id="detailAvgSpd">-- mph</span></div>
+    <div class="detail-row"><span>Max Speed</span><span id="detailMaxSpd">-- mph</span></div>
+    <div class="detail-row"><span>Hard Brakes</span><span id="detailBrakes" style="color:var(--orange)">0</span></div>
+    <div class="detail-row"><span>Speed Violations</span><span id="detailViolations" style="color:var(--red)">0</span></div>
+    <div class="detail-row"><span>Net Reward</span><span id="detailReward" style="color:var(--green); font-family:'Rajdhani',sans-serif; font-size:1rem;">$0.00</span></div>
+  </div>
+
+  <!-- EVENT LOG -->
+  <div class="event-log">
+    <h3>📡 Live Event Log</h3>
+    <div id="logContainer">
+      <div class="log-item">
+        <div class="log-dot" style="background:var(--muted)"></div>
+        <span class="log-time">--:--</span>
+        <span>Waiting for trip to start...</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── RISK ZONES ───────────────────────────────────────────────
+const RISK_ZONES = [
+  { id: 'school', pos: 0.2, label: 'School Zone', speedLimit: 25, alert: '🏫 Slow down! School zone ahead. Limit: 25 mph', color: '#ffd600' },
+  { id: 'hospital', pos: 0.45, label: 'Hospital Zone', speedLimit: 20, alert: '🏥 Hospital zone! Drive slowly. Limit: 20 mph', color: '#00d4ff' },
+  { id: 'construction', pos: 0.65, label: 'Construction Zone', speedLimit: 35, alert: '🚧 Construction ahead! Reduce speed. Limit: 35 mph', color: '#ff6d00' },
+  { id: 'sharp_turn', pos: 0.82, label: 'Sharp Turn', speedLimit: 30, alert: '⚠️ Sharp turn ahead! Slow down to 30 mph', color: '#ff3d57' },
+];
+
+// ─── STATE ────────────────────────────────────────────────────
+let running = false;
+let tripTime = 0;
+let tripDist = 0;
+let score = 76;
+let events = 0;
+let hardBrakes = 0;
+let speedViolations = 0;
+let rewardSmooth = 0;
+let rewardZone = 0;
+let penaltyBrake = 0;
+let penaltySpeed = 0;
+let prevSpeed = 0;
+let maxSpeed = 0;
+let speedSum = 0;
+let speedSamples = 0;
+let carProgress = 0;
+let lastZoneIdx = -1;
+let tripInterval = null;
+let alertTimeout = null;
+let lastAlertTime = -999;
+let lastPenaltyTime = -999;
+let lastSmoothTime = 0;
+let smoothStreak = 0;
+
+// ─── CANVAS MAP ──────────────────────────────────────────────
+const canvas = document.getElementById('mapCanvas');
+const ctx = canvas.getContext('2d');
+
+function initCanvas() {
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  drawMap();
+}
+
+function getW() { return canvas.offsetWidth; }
+function getH() { return canvas.offsetHeight; }
+
+function drawMap() {
+  const w = getW(), h = getH();
+  ctx.clearRect(0, 0, w, h);
+
+  // Background
+  ctx.fillStyle = '#131c2e';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(36,48,73,0.6)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 30) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+  for (let y = 0; y < h; y += 30) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  // Route path (bezier)
+  const pts = getRoutePts(w, h);
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  ctx.bezierCurveTo(pts[1].x, pts[1].y, pts[2].x, pts[2].y, pts[3].x, pts[3].y);
+  ctx.strokeStyle = 'rgba(0,212,255,0.2)';
+  ctx.lineWidth = 14;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Completed path
+  if (carProgress > 0) {
+    ctx.save();
+    ctx.beginPath();
+    // Draw partial route up to carProgress
+    for (let t = 0; t <= carProgress; t += 0.01) {
+      const p = getBezierPoint(pts, t);
+      t === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    }
+    ctx.strokeStyle = '#00d4ff';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Risk zone markers
+  RISK_ZONES.forEach(zone => {
+    const p = getBezierPoint(pts, zone.pos);
+    const passed = carProgress > zone.pos;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+    ctx.fillStyle = passed ? 'rgba(107,122,153,0.3)' : zone.color + '33';
+    ctx.fill();
+    ctx.strokeStyle = passed ? 'rgba(107,122,153,0.5)' : zone.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = zone.color;
+    ctx.font = 'bold 10px DM Sans';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(zone.id === 'school' ? '🏫' : zone.id === 'hospital' ? '🏥' : zone.id === 'construction' ? '🚧' : '⚠️', p.x, p.y);
+  });
+
+  // Start (A) marker
+  const start = getBezierPoint(pts, 0);
+  drawMarker(start.x, start.y, 'A', '#00e676');
+
+  // End (B) marker
+  const end = getBezierPoint(pts, 1);
+  drawMarker(end.x, end.y, 'B', '#ff3d57');
+
+  // Car
+  if (carProgress >= 0) {
+    const car = getBezierPoint(pts, Math.min(carProgress, 1));
+    ctx.beginPath();
+    ctx.arc(car.x, car.y, 12, 0, Math.PI * 2);
+    ctx.fillStyle = '#00d4ff';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🚗', car.x, car.y);
+  }
+}
+
+function getRoutePts(w, h) {
+  return [
+    { x: 30, y: h - 30 },
+    { x: w * 0.3, y: h * 0.1 },
+    { x: w * 0.7, y: h * 0.9 },
+    { x: w - 30, y: 30 }
+  ];
+}
+
+function getBezierPoint(pts, t) {
+  const p0 = pts[0], p1 = pts[1], p2 = pts[2], p3 = pts[3];
+  const u = 1 - t;
+  return {
+    x: u*u*u*p0.x + 3*u*u*t*p1.x + 3*u*t*t*p2.x + t*t*t*p3.x,
+    y: u*u*u*p0.y + 3*u*u*t*p1.y + 3*u*t*t*p2.y + t*t*t*p3.y
+  };
+}
+
+function drawMarker(x, y, label, color) {
+  ctx.beginPath();
+  ctx.arc(x, y, 14, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.font = 'bold 11px Rajdhani, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, x, y);
+}
+
+// ─── ALERT SYSTEM ────────────────────────────────────────────
+function showAlert(type, text, icon = '⚠️', duration = 4000) {
+  const banner = document.getElementById('alertBanner');
+  banner.className = 'alert-banner ' + type;
+  banner.style.display = 'flex';
+  document.getElementById('alertIcon').textContent = icon;
+  document.getElementById('alertText').textContent = text;
+  if (alertTimeout) clearTimeout(alertTimeout);
+  alertTimeout = setTimeout(() => { banner.style.display = 'none'; }, duration);
+  speak(text);
+}
+
+function speak(text) {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/[^\w\s.,!?]/g, ''));
+    u.rate = 1.05; u.pitch = 1;
+    window.speechSynthesis.speak(u);
+  }
+}
+
+// ─── LOG ─────────────────────────────────────────────────────
+function addLog(text, color) {
+  const el = document.getElementById('logContainer');
+  const mins = Math.floor(tripTime / 60);
+  const secs = tripTime % 60;
+  const timeStr = `${mins}:${secs.toString().padStart(2,'0')}`;
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  item.innerHTML = `<div class="log-dot" style="background:${color}"></div><span class="log-time">${timeStr}</span><span>${text}</span>`;
+  el.insertBefore(item, el.firstChild);
+  if (el.children.length > 20) el.removeChild(el.lastChild);
+}
+
+// ─── SCORE ────────────────────────────────────────────────────
+function updateScore(delta) {
+  score = Math.max(0, Math.min(100, score + delta));
+  document.getElementById('scoreNum').textContent = Math.round(score);
+  const circumference = 239;
+  const offset = circumference - (score / 100) * circumference * 0.76;
+  document.getElementById('gaugeArc').style.strokeDashoffset = offset;
+  document.getElementById('gaugeArc').style.stroke =
+    score >= 80 ? 'var(--green)' : score >= 60 ? 'var(--yellow)' : 'var(--red)';
+}
+
+// ─── MAIN LOOP ────────────────────────────────────────────────
+function startTrip() {
+  if (running) return;
+  running = true;
+  document.getElementById('startBtn').textContent = '⏸ Driving...';
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('tripStatus').className = 'status-badge active';
+  document.getElementById('tripStatus').textContent = 'Active';
+  addLog('Trip started: A → B', 'var(--green)');
+  showAlert('info', '🚀 Trip started! Drive safely to Point B.', '🚀', 3000);
+
+  tripInterval = setInterval(tick, 1000);
+}
+
+function tick() {
+  if (!running) return;
+  tripTime++;
+  const speed = parseInt(document.getElementById('speedSlider').value);
+
+  // Update stats
+  tripDist += speed / 3600;
+  speedSum += speed;
+  speedSamples++;
+  if (speed > maxSpeed) maxSpeed = speed;
+
+  // Car progress (moves faster at higher speed)
+  carProgress = Math.min(1, carProgress + (speed / 100) * 0.018);
+
+  // Check risk zones
+  RISK_ZONES.forEach((zone, i) => {
+    if (carProgress >= zone.pos - 0.04 && carProgress < zone.pos + 0.02 && i !== lastZoneIdx) {
+      lastZoneIdx = i;
+      showAlert('warning', zone.alert, '', 5000);
+      addLog(`Entered: ${zone.label} (limit ${zone.speedLimit} mph)`, zone.color);
+
+      // Check if user is within limit
+      setTimeout(() => {
+        const curSpd = parseInt(document.getElementById('speedSlider').value);
+        if (curSpd <= zone.speedLimit) {
+          rewardZone += 0.25;
+          updateScore(+2);
+          addLog(`✅ Safe zone pass! +$0.25`, 'var(--green)');
+          showAlert('info', `✅ Great! You slowed down in the ${zone.label}. +$0.25 reward!`, '🏅', 3500);
+        } else {
+          penaltySpeed += 0.5;
+          speedViolations++;
+          updateScore(-5);
+          addLog(`🚨 Zone speed violation! -$0.50`, 'var(--red)');
+          showAlert('danger', `🚨 You didn't slow down in ${zone.label}! -$0.50 penalty.`, '🚨', 4000);
+        }
+        refreshUI();
+      }, 3000);
+    }
+  });
+
+  // Hard braking detection
+  const delta = speed - prevSpeed;
+  if (delta < -15 && tripTime - lastPenaltyTime > 5) {
+    hardBrakes++;
+    events++;
+    penaltyBrake += 0.3;
+    updateScore(-4);
+    lastPenaltyTime = tripTime;
+    showAlert('danger', `🛑 Hard braking detected! Slow down gradually. -$0.30`, '🛑', 4000);
+    addLog(`Hard brake: ${prevSpeed}→${speed} mph. -$0.30`, 'var(--red)');
+  }
+
+  // Continuous speeding
+  if (speed > 65 && tripTime - lastPenaltyTime > 8) {
+    speedViolations++;
+    events++;
+    penaltySpeed += 0.4;
+    updateScore(-3);
+    lastPenaltyTime = tripTime;
+    showAlert('danger', `🚨 Slow down! You're going ${speed} mph. -$0.40 penalty!`, '🚨', 4000);
+    addLog(`Speeding: ${speed} mph. -$0.40`, 'var(--red)');
+  } else if (speed > 45 && speed <= 65 && tripTime - lastAlertTime > 10) {
+    lastAlertTime = tripTime;
+    showAlert('warning', `⚠️ Speed is ${speed} mph. Consider slowing down.`, '⚠️', 3000);
+  }
+
+  // Smooth driving reward
+  if (speed > 0 && speed <= 45 && Math.abs(delta) < 5) {
+    smoothStreak++;
+    if (smoothStreak % 10 === 0) {
+      rewardSmooth += 0.15;
+      updateScore(+1);
+      addLog(`Smooth driving streak! +$0.15`, 'var(--green)');
+    }
+  } else {
+    smoothStreak = 0;
+  }
+
+  prevSpeed = speed;
+
+  // Trip complete
+  if (carProgress >= 1) {
+    endTrip();
+    return;
+  }
+
+  refreshUI();
+  drawMap();
+}
+
+function refreshUI() {
+  const speed = parseInt(document.getElementById('speedSlider').value);
+  document.getElementById('speedDisplay').innerHTML = `${speed} <span>mph</span>`;
+
+  const mins = Math.floor(tripTime / 60);
+  const secs = tripTime % 60;
+  document.getElementById('statTime').textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+  document.getElementById('statDist').textContent = tripDist.toFixed(1);
+  document.getElementById('statEvents').textContent = events;
+
+  document.getElementById('rewardVal').textContent = `+$${rewardSmooth.toFixed(2)}`;
+  document.getElementById('zoneReward').textContent = `+$${rewardZone.toFixed(2)}`;
+  document.getElementById('penaltyBrake').textContent = `-$${penaltyBrake.toFixed(2)}`;
+  document.getElementById('penaltySpeed').textContent = `-$${penaltySpeed.toFixed(2)}`;
+
+  const net = rewardSmooth + rewardZone - penaltyBrake - penaltySpeed;
+  document.getElementById('detailReward').textContent = `$${net.toFixed(2)}`;
+  document.getElementById('detailReward').style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('detailDist').textContent = `${tripDist.toFixed(2)} mi`;
+  document.getElementById('detailAvgSpd').textContent = speedSamples > 0 ? `${Math.round(speedSum / speedSamples)} mph` : '-- mph';
+  document.getElementById('detailMaxSpd').textContent = `${maxSpeed} mph`;
+  document.getElementById('detailBrakes').textContent = hardBrakes;
+  document.getElementById('detailViolations').textContent = speedViolations;
+
+  const mapLabel = document.getElementById('mapLabel');
+  const pct = Math.round(carProgress * 100);
+  mapLabel.textContent = pct < 100 ? `🚗 ${pct}% to Point B` : '🏁 Arrived!';
+}
+
+function endTrip() {
+  running = false;
+  clearInterval(tripInterval);
+  document.getElementById('tripStatus').className = 'status-badge idle';
+  document.getElementById('tripStatus').textContent = 'Completed';
+
+  const net = rewardSmooth + rewardZone - penaltyBrake - penaltySpeed;
+  const msg = net >= 0
+    ? `🏁 Trip complete! Great drive. Score: ${Math.round(score)}. Earned: $${net.toFixed(2)}`
+    : `🏁 Trip complete! Score: ${Math.round(score)}. Net: $${net.toFixed(2)}. Drive safer next time!`;
+
+  showAlert(net >= 0 ? 'info' : 'warning', msg, '🏁', 8000);
+  addLog(`Trip complete! Score: ${Math.round(score)} | Net: $${net.toFixed(2)}`, 'var(--accent)');
+  refreshUI();
+  drawMap();
+}
+
+function resetTrip() {
+  running = false;
+  clearInterval(tripInterval);
+  if (alertTimeout) clearTimeout(alertTimeout);
+  window.speechSynthesis && window.speechSynthesis.cancel();
+
+  tripTime = 0; tripDist = 0; score = 76; events = 0;
+  hardBrakes = 0; speedViolations = 0;
+  rewardSmooth = 0; rewardZone = 0; penaltyBrake = 0; penaltySpeed = 0;
+  prevSpeed = 0; maxSpeed = 0; speedSum = 0; speedSamples = 0;
+  carProgress = 0; lastZoneIdx = -1; lastAlertTime = -999;
+  lastPenaltyTime = -999; smoothStreak = 0;
+
+  document.getElementById('speedSlider').value = 0;
+  document.getElementById('startBtn').textContent = '▶ Start Trip';
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('tripStatus').className = 'status-badge idle';
+  document.getElementById('tripStatus').textContent = 'Idle';
+  document.getElementById('alertBanner').style.display = 'none';
+  document.getElementById('logContainer').innerHTML = '<div class="log-item"><div class="log-dot" style="background:var(--muted)"></div><span class="log-time">--:--</span><span>Waiting for trip to start...</span></div>';
+
+  updateScore(0);
+  refreshUI();
+  drawMap();
+}
+
+// Live speed display while dragging
+document.getElementById('speedSlider').addEventListener('input', function() {
+  if (!running) {
+    document.getElementById('speedDisplay').innerHTML = `${this.value} <span>mph</span>`;
+  }
+});
+
+// Init
+window.addEventListener('resize', initCanvas);
+initCanvas();
+updateScore(0);
+</script>
+</body>
+</html>

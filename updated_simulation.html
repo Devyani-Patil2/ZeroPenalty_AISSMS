@@ -1,0 +1,2618 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>ZeroPenalty – Smart Trip Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <style>
+        :root {
+            --bg: #050911;
+            --card: #111b2e;
+            --border: #1e2f4a;
+            --accent: #00c6ff;
+            --green: #00e676;
+            --yellow: #ffc400;
+            --red: #ff3d57;
+            --orange: #ff6d00;
+            --text: #e0e8f5;
+            --muted: #5a7090;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            background: rgba(5, 9, 17, 0.97);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, var(--accent), var(--green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .score-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 4px 12px;
+        }
+
+        .score-badge .sn {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .score-badge .sl {
+            font-size: 0.65rem;
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+
+        #map {
+            flex: 1;
+            z-index: 1;
+            position: relative;
+        }
+
+        #mapFloatAlert {
+            position: absolute;
+            top: 58px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 900;
+            background: rgba(5, 9, 17, 0.93);
+            border-radius: 12px;
+            padding: 9px 16px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.83rem;
+            font-weight: 600;
+            border: 1px solid;
+            backdrop-filter: blur(10px);
+            white-space: nowrap;
+            max-width: 92vw;
+            animation: sld 0.3s ease;
+        }
+
+        @keyframes sld {
+            from {
+                opacity: 0;
+                top: 40px
+            }
+
+            to {
+                opacity: 1;
+                top: 58px
+            }
+        }
+
+        #mapFloatAlert.info {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        #mapFloatAlert.warn {
+            border-color: var(--yellow);
+            color: var(--yellow);
+        }
+
+        #mapFloatAlert.danger {
+            border-color: var(--red);
+            color: #ff8a9b;
+        }
+
+        .loading-ov {
+            position: absolute;
+            inset: 0;
+            background: rgba(5, 9, 17, 0.88);
+            z-index: 800;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 1px;
+            color: var(--accent);
+        }
+
+        .spin {
+            width: 34px;
+            height: 34px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: sp 0.7s linear infinite;
+        }
+
+        @keyframes sp {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .bottom {
+            background: rgba(5, 9, 17, 0.97);
+            border-top: 1px solid var(--border);
+            padding: 10px 12px 12px;
+            z-index: 1000;
+            flex-shrink: 0;
+            max-height: 56vh;
+            overflow-y: auto;
+        }
+
+        .preset-btn {
+            display: inline-block;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 4px 10px;
+            color: var(--muted);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            margin-right: 5px;
+            white-space: nowrap;
+            transition: all 0.18s;
+        }
+
+        .preset-btn:hover,
+        .preset-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(0, 198, 255, 0.08);
+        }
+
+        .route-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        .loc-in {
+            flex: 1;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 8px 10px;
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.78rem;
+            outline: none;
+            transition: border-color 0.2s;
+            min-width: 0;
+        }
+
+        .loc-in:focus {
+            border-color: var(--accent);
+        }
+
+        .loc-in::placeholder {
+            color: var(--muted);
+        }
+
+        .btn-go {
+            background: linear-gradient(135deg, var(--accent), #006fa8);
+            border: none;
+            border-radius: 9px;
+            padding: 8px 12px;
+            color: #000;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: opacity 0.2s;
+        }
+
+        .btn-go:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .alert-strip {
+            display: none;
+            align-items: center;
+            gap: 9px;
+            padding: 9px 12px;
+            border-radius: 9px;
+            font-size: 0.79rem;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .alert-strip.info {
+            background: rgba(0, 198, 255, 0.09);
+            border: 1px solid rgba(0, 198, 255, 0.35);
+            color: #7ee8ff;
+        }
+
+        .alert-strip.warn {
+            background: rgba(255, 196, 0, 0.09);
+            border: 1px solid rgba(255, 196, 0, 0.35);
+            color: #ffd740;
+        }
+
+        .alert-strip.danger {
+            background: rgba(255, 61, 87, 0.11);
+            border: 1px solid rgba(255, 61, 87, 0.35);
+            color: #ff8a9b;
+        }
+
+        .spd-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .spd-lbl {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            color: var(--muted);
+            text-transform: uppercase;
+            flex-shrink: 0;
+            width: 42px;
+        }
+
+        input[type=range] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 5px;
+            border-radius: 3px;
+            background: var(--border);
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 10px rgba(0, 198, 255, 0.55);
+            cursor: pointer;
+        }
+
+        .spd-val {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            width: 62px;
+            text-align: right;
+        }
+
+        .spd-val span {
+            font-size: 0.65rem;
+            color: var(--muted);
+            font-weight: 400;
+        }
+
+        .act-row {
+            display: flex;
+            gap: 7px;
+            margin-bottom: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 9px;
+            border: none;
+            border-radius: 9px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, var(--green), #009c4a);
+            color: #000;
+        }
+
+        .btn-start:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-reset {
+            background: var(--card);
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        .btn-reset:hover {
+            border-color: var(--muted);
+            color: var(--text);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+
+        .sbox {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 7px 5px;
+            text-align: center;
+        }
+
+        .sbox .sv {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .sbox .sl {
+            font-size: 0.58rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .money-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+
+        .mbox {
+            flex: 1;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 7px 9px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.72rem;
+        }
+
+        .mbox .ml {
+            color: var(--muted);
+        }
+
+        .mbox .mv {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 0.92rem;
+        }
+
+        .pos {
+            color: var(--green);
+        }
+
+        .neg {
+            color: var(--red);
+        }
+
+        .log-wrap {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 9px;
+            max-height: 90px;
+            overflow-y: auto;
+        }
+
+        .log-hd {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+
+        .log-item {
+            display: flex;
+            gap: 7px;
+            align-items: flex-start;
+            font-size: 0.72rem;
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            animation: fi 0.3s ease;
+        }
+
+        @keyframes fi {
+            from {
+                opacity: 0
+            }
+
+            to {
+                opacity: 1
+            }
+        }
+
+        .log-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 3px;
+        }
+
+        .log-time {
+            color: var(--muted);
+            flex-shrink: 0;
+        }
+
+
+        /* badge button */
+        .badge-btn {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 5px 13px;
+            color: var(--text);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+
+        .badge-btn:hover {
+            border-color: var(--yellow);
+            color: var(--yellow);
+        }
+
+        #badgeBubble {
+            background: var(--yellow);
+            color: #000;
+            border-radius: 10px;
+            padding: 1px 7px;
+            font-size: 0.62rem;
+            font-weight: 900;
+        }
+
+        /* ── ACHIEVEMENTS OVERLAY ── */
+        .ach-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.82);
+            z-index: 5000;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .ach-overlay.open {
+            display: flex;
+        }
+
+        .ach-sheet {
+            background: #08111f;
+            border-top: 1px solid var(--border);
+            border-radius: 22px 22px 0 0;
+            width: 100%;
+            max-width: 480px;
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 0 0 30px;
+            animation: sheetUp 0.32s cubic-bezier(0.34, 1.3, 0.64, 1);
+        }
+
+        @keyframes sheetUp {
+            from {
+                transform: translateY(80px);
+                opacity: 0
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1
+            }
+        }
+
+        .ach-top {
+            position: sticky;
+            top: 0;
+            background: #08111f;
+            z-index: 10;
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .ach-top-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, var(--yellow), var(--orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .ach-close-btn {
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--muted);
+            transition: all 0.2s;
+        }
+
+        .ach-close-btn:hover {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .ach-stats-bar {
+            display: flex;
+            gap: 8px;
+            padding: 10px 14px;
+            background: rgba(255, 196, 0, 0.04);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .ach-stat {
+            flex: 1;
+            text-align: center;
+        }
+
+        .ach-stat .asv {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--yellow);
+        }
+
+        .ach-stat .asl {
+            font-size: 0.6rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .ach-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 12px 12px 0;
+        }
+
+        /* ── BADGE CARD ── */
+        .bc {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 12px 8px 10px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .bc.unlocked {
+            border-color: #ffb300;
+            box-shadow: 0 0 18px rgba(255, 179, 0, 0.18), inset 0 0 20px rgba(255, 196, 0, 0.03);
+        }
+
+        .bc.locked {
+            filter: grayscale(0.6);
+            opacity: 0.5;
+        }
+
+        .bc .star-stamp {
+            position: absolute;
+            top: 7px;
+            right: 7px;
+            background: var(--yellow);
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+        }
+
+        /* ── SHIELD SVG WRAPPER ── */
+        .shield-wrap {
+            width: 68px;
+            height: 80px;
+            margin: 0 auto 6px;
+            position: relative;
+        }
+
+        .shield-wrap svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .shield-emoji {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -55%);
+            font-size: 1.7rem;
+            line-height: 1;
+        }
+
+        .bc-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            color: var(--text);
+            margin-bottom: 2px;
+            line-height: 1.2;
+        }
+
+        .bc-desc {
+            font-size: 0.58rem;
+            color: var(--muted);
+            line-height: 1.4;
+            margin-bottom: 4px;
+        }
+
+        .bc-prog {
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .bc-prog-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.6s ease;
+        }
+
+        .bc-prog-lbl {
+            font-size: 0.55rem;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .bc-done {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.6rem;
+            color: var(--yellow);
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        /* ── BADGE DETAIL POPUP ── */
+        .bd-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 6000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bd-overlay.open {
+            display: flex;
+        }
+
+        .bd-card {
+            background: #0d1829;
+            border-radius: 20px;
+            width: 280px;
+            max-width: 90vw;
+            overflow: hidden;
+            animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid var(--border);
+        }
+
+        @keyframes popIn {
+            from {
+                opacity: 0;
+                transform: scale(0.75)
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1)
+            }
+        }
+
+        .bd-top {
+            padding: 20px 16px 14px;
+            text-align: center;
+            position: relative;
+        }
+
+        .bd-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            color: var(--text);
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .bd-shield-lg {
+            width: 100px;
+            height: 118px;
+            margin: 0 auto 10px;
+            position: relative;
+        }
+
+        .bd-shield-lg svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .bd-emoji-lg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -55%);
+            font-size: 2.6rem;
+        }
+
+        .bd-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .bd-sub {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .bd-body {
+            background: #0a1220;
+            padding: 14px 16px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .bd-body p {
+            font-size: 0.82rem;
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .bd-congrats {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.78rem;
+            color: var(--green);
+            margin-top: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── TRIP RESULT POPUP (after each trip) ── */
+        .trip-result-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 5500;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .trip-result-overlay.open {
+            display: flex;
+        }
+
+        .trip-result-card {
+            background: #0d1829;
+            border-radius: 20px;
+            width: 310px;
+            max-width: 92vw;
+            overflow: hidden;
+            animation: popIn 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
+            border: 1px solid var(--border);
+        }
+
+        .tr-header {
+            padding: 16px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tr-header h2 {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .tr-score-ring {
+            margin: 14px auto;
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .tr-score-ring svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .tr-score-num {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.9rem;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+        }
+
+        .tr-score-lbl {
+            font-size: 0.6rem;
+            color: var(--muted);
+            position: relative;
+            z-index: 1;
+        }
+
+        .tr-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+            background: var(--border);
+        }
+
+        .tr-stat {
+            background: #0d1829;
+            padding: 10px 12px;
+            text-align: center;
+        }
+
+        .tr-stat .tv {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .tr-stat .tl {
+            font-size: 0.6rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .tr-badges {
+            padding: 12px 14px;
+            border-top: 1px solid var(--border);
+        }
+
+        .tr-badges h4 {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .tr-badge-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tr-badge-pill {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255, 179, 0, 0.1);
+            border: 1px solid rgba(255, 179, 0, 0.35);
+            border-radius: 20px;
+            padding: 4px 10px;
+            font-size: 0.72rem;
+            color: var(--yellow);
+        }
+
+        .tr-close-btn {
+            display: block;
+            width: calc(100% - 28px);
+            margin: 10px 14px 14px;
+            background: linear-gradient(135deg, var(--accent), #006fa8);
+            border: none;
+            border-radius: 10px;
+            padding: 11px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            color: #000;
+        }
+
+        /* ── NEW BADGE TOAST ── */
+        .new-badge-toast {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 7000;
+            background: #0d1829;
+            border: 2px solid var(--yellow);
+            border-radius: 16px;
+            padding: 12px 18px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 0 30px rgba(255, 196, 0, 0.35);
+            animation: toastPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            min-width: 240px;
+            max-width: 88vw;
+        }
+
+        @keyframes toastPop {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) scale(0.75)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(-50%) scale(1)
+            }
+        }
+
+        .nbt-shield {
+            width: 44px;
+            height: 52px;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .nbt-shield svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .nbt-emoji {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -55%);
+            font-size: 1.1rem;
+        }
+
+        .nbt-info .nbt-lbl {
+            font-size: 0.6rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--yellow);
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .nbt-info .nbt-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .nbt-info .nbt-desc {
+            font-size: 0.65rem;
+            color: var(--muted);
+        }
+
+        /* ── COUPON SYSTEM ─────────────────────────────────── */
+        .coupon-hdr-btn {
+            border-color: var(--orange) !important;
+            color: var(--orange) !important;
+        }
+
+        .coupon-hdr-btn:hover {
+            border-color: #ff9100 !important;
+            color: #ff9100 !important;
+            background: rgba(255, 109, 0, 0.08) !important;
+        }
+
+        /* Coupon Sheet */
+        .cpn-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.82);
+            z-index: 5000;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .cpn-overlay.open {
+            display: flex;
+        }
+
+        .cpn-sheet {
+            background: #08111f;
+            border-top: 1px solid var(--border);
+            border-radius: 22px 22px 0 0;
+            width: 100%;
+            max-width: 480px;
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 0 0 30px;
+            animation: sheetUp 0.32s cubic-bezier(0.34, 1.3, 0.64, 1);
+        }
+
+        .cpn-top {
+            position: sticky;
+            top: 0;
+            background: #08111f;
+            z-index: 10;
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .cpn-top-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, var(--orange), var(--yellow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .cpn-close-btn {
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--muted);
+        }
+
+        /* Filter tabs */
+        .cpn-tabs {
+            display: flex;
+            gap: 0;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+
+        .cpn-tab {
+            flex-shrink: 0;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            background: transparent;
+            margin-right: 6px;
+            transition: all 0.2s;
+        }
+
+        .cpn-tab.active {
+            background: var(--orange);
+            border-color: var(--orange);
+            color: #000;
+        }
+
+        .cpn-list {
+            padding: 12px;
+        }
+
+        .cpn-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        /* Coupon Card */
+        .cpn-card {
+            position: relative;
+            border-radius: 14px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            border: 2px dashed var(--border);
+            background: var(--card);
+        }
+
+        .cpn-card.available {
+            border-color: var(--orange);
+        }
+
+        .cpn-card.used {
+            border-color: var(--border);
+            opacity: 0.6;
+        }
+
+        .cpn-card.expired {
+            border-color: var(--border);
+            opacity: 0.45;
+            filter: grayscale(0.7);
+        }
+
+        .cpn-card-top {
+            display: flex;
+            gap: 0;
+            background: rgba(255, 109, 0, 0.07);
+        }
+
+        .cpn-left-stripe {
+            width: 8px;
+            flex-shrink: 0;
+        }
+
+        .cpn-left-stripe.available {
+            background: var(--orange);
+        }
+
+        .cpn-left-stripe.used {
+            background: var(--muted);
+        }
+
+        .cpn-left-stripe.expired {
+            background: #333;
+        }
+
+        .cpn-main {
+            flex: 1;
+            padding: 12px 14px 10px;
+        }
+
+        .cpn-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .cpn-emoji {
+            font-size: 1.5rem;
+        }
+
+        .cpn-badge-name {
+            font-size: 0.65rem;
+            color: var(--muted);
+            font-family: 'Rajdhani', sans-serif;
+            letter-spacing: 0.5px;
+        }
+
+        .cpn-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--text);
+            margin-bottom: 3px;
+        }
+
+        .cpn-desc {
+            font-size: 0.72rem;
+            color: var(--muted);
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .cpn-where {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.65rem;
+            color: var(--orange);
+            margin-bottom: 8px;
+        }
+
+        /* Tear line */
+        .cpn-tear {
+            height: 1px;
+            border-top: 2px dashed var(--border);
+            margin: 0 -2px;
+        }
+
+        .cpn-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+        }
+
+        .cpn-code-box {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .cpn-code {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--yellow);
+            background: rgba(255, 196, 0, 0.08);
+            border: 1px solid rgba(255, 196, 0, 0.2);
+            border-radius: 6px;
+            padding: 3px 8px;
+        }
+
+        .cpn-copy-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 0.65rem;
+            color: var(--muted);
+            cursor: pointer;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .cpn-copy-btn:hover {
+            border-color: var(--yellow);
+            color: var(--yellow);
+        }
+
+        .cpn-expiry {
+            font-size: 0.62rem;
+            color: var(--muted);
+        }
+
+        .cpn-expiry.urgent {
+            color: var(--red);
+        }
+
+        .cpn-use-btn {
+            background: linear-gradient(135deg, var(--orange), #cc4400);
+            border: none;
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 0.75rem;
+            color: #fff;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+
+        .cpn-use-btn:hover {
+            opacity: 0.85;
+        }
+
+        /* USED stamp */
+        .cpn-used-stamp {
+            position: absolute;
+            top: 50%;
+            right: 14px;
+            transform: translateY(-50%) rotate(-15deg);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: rgba(255, 61, 87, 0.7);
+            border: 3px solid rgba(255, 61, 87, 0.5);
+            border-radius: 6px;
+            padding: 2px 8px;
+            letter-spacing: 2px;
+            pointer-events: none;
+        }
+
+        /* Coupon toast */
+        .cpn-toast {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 7000;
+            background: #0d1829;
+            border: 2px solid var(--orange);
+            border-radius: 16px;
+            padding: 12px 18px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 0 30px rgba(255, 109, 0, 0.35);
+            animation: toastPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            min-width: 220px;
+            max-width: 88vw;
+        }
+
+        .cpn-toast .ct-icon {
+            font-size: 1.6rem;
+            flex-shrink: 0;
+        }
+
+        .cpn-toast .ct-txt {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--orange);
+        }
+
+        .cpn-toast .ct-sub {
+            font-size: 0.65rem;
+            color: var(--muted);
+        }
+
+        /* Badge detail coupon section */
+        .bd-coupon-section {
+            margin: 10px 16px 0;
+            background: rgba(255, 109, 0, 0.06);
+            border: 1px dashed var(--orange);
+            border-radius: 12px;
+            padding: 10px 12px;
+        }
+
+        .bd-cpn-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--orange);
+            margin-bottom: 6px;
+        }
+
+        .bd-cpn-offer {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 3px;
+        }
+
+        .bd-cpn-where {
+            font-size: 0.68rem;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .bd-cpn-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--orange), #cc4400);
+            border: none;
+            border-radius: 9px;
+            padding: 9px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 0.88rem;
+            letter-spacing: 1px;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .bd-cpn-btn:disabled {
+            background: var(--border);
+            color: var(--muted);
+            cursor: not-allowed;
+        }
+
+        ::-webkit-scrollbar {
+            width: 3px;
+            height: 3px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <div class="logo">🛡️ ZeroPenalty</div>
+        <div style="display:flex;gap:6px;align-items:center;"><button class="badge-btn" onclick="openAch()"><span
+                    id="badgeBubble" style="display:none">0</span>🏆 Badges</button><button
+                class="badge-btn coupon-hdr-btn" onclick="openCoupons()"><span id="couponBubble"
+                    style="display:none;background:#ff6d00">0</span>🎟️ Coupons</button></div>
+        <div class="score-badge">
+            <div class="sl">Score</div>
+            <div class="sn" id="scoreDisp" style="color:var(--green)">80</div>
+        </div>
+    </div>
+
+    <div id="map">
+        <div class="loading-ov" id="loadOv">
+            <div class="spin"></div>
+            <span id="loadTxt">Loading...</span>
+        </div>
+        <div id="mapFloatAlert">
+            <span id="mfaIcon">⚠️</span>
+            <span id="mfaText"></span>
+        </div>
+    </div>
+
+    <div class="bottom">
+        <!-- Preset Routes -->
+        <div style="margin-bottom:7px;overflow-x:auto;white-space:nowrap;padding-bottom:2px;">
+            <span
+                style="font-family:'Rajdhani',sans-serif;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-right:6px;">Quick
+                Routes:</span>
+            <button class="preset-btn" onclick="setPreset(0)">Swargate → Bibwewadi</button>
+            <button class="preset-btn" onclick="setPreset(1)">Wagholi → Hinjewadi</button>
+            <button class="preset-btn" onclick="setPreset(2)">Yerawada → Sangamwadi</button>
+
+        </div>
+
+        <div class="route-row">
+            <input class="loc-in" id="inFrom" placeholder="📍 From" value="Swargate, Pune" />
+            <input class="loc-in" id="inTo" placeholder="🏁 To" value="Bibwewadi, Pune" />
+            <button class="btn-go" id="goBtn" onclick="loadRoute()">Go</button>
+        </div>
+
+        <div class="alert-strip" id="alertStrip">
+            <span id="alertIcon" style="font-size:1.1rem;flex-shrink:0">⚠️</span>
+            <span id="alertText"></span>
+        </div>
+
+        <div class="spd-row">
+            <span class="spd-lbl">Speed</span>
+            <input type="range" id="spdSlider" min="0" max="100" value="0" oninput="onSpd(this.value)">
+            <div class="spd-val" id="spdDisp">0 <span>km/h</span></div>
+        </div>
+
+        <div class="act-row">
+            <button class="btn btn-start" id="startBtn" onclick="startTrip()" disabled>▶ Start Trip</button>
+            <button class="btn btn-reset" onclick="resetTrip(true)">↺ Reset</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="sbox">
+                <div class="sv" id="stTime">0:00</div>
+                <div class="sl">Time</div>
+            </div>
+            <div class="sbox">
+                <div class="sv" id="stDist">0.0</div>
+                <div class="sl">km</div>
+            </div>
+            <div class="sbox">
+                <div class="sv" id="stEvt" style="color:var(--orange)">0</div>
+                <div class="sl">Events</div>
+            </div>
+            <div class="sbox">
+                <div class="sv" id="stPct">0%</div>
+                <div class="sl">Done</div>
+            </div>
+        </div>
+
+        <div class="money-row">
+            <div class="mbox"><span class="ml">🏅 Rewards</span><span class="mv pos" id="mRew">₹0</span></div>
+            <div class="mbox"><span class="ml">⚡ Penalty</span><span class="mv neg" id="mPen">-₹0</span></div>
+            <div class="mbox"><span class="ml">💰 Net</span><span class="mv pos" id="mNet">₹0</span></div>
+        </div>
+
+        <div class="log-wrap">
+            <div class="log-hd">📡 Live Event Log</div>
+            <div id="logCont">
+                <div class="log-item">
+                    <div class="log-dot" style="background:var(--muted)"></div>
+                    <span class="log-time">--:--</span>
+                    <span>Enter locations and tap Go</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── MAP INIT ──────────────────────────────────────────────
+        const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([18.52, 73.87], 13);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 20 }).addTo(map);
+
+        const carIcon = L.divIcon({ html: `<div style="background:#00c6ff;border:3px solid #fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 0 14px rgba(0,198,255,0.8)">🚗</div>`, className: '', iconSize: [28, 28], iconAnchor: [14, 14] });
+        const mkIcon = (lbl, bg, fg = '#000') => L.divIcon({ html: `<div style="background:${bg};border:3px solid #fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'Rajdhani',sans-serif;font-weight:700;color:${fg}">${lbl}</div>`, className: '', iconSize: [26, 26], iconAnchor: [13, 13] });
+
+        // ── STATE ─────────────────────────────────────────────────
+        let routeLayer = null, carMarker = null, poiMkrs = [], routeCoords = [], riskZones = [];
+        let running = false, tripTimer = null;
+        let tripTime = 0, tripDist = 0, carIdx = 0, score = 80, events = 0;
+        let totalRew = 0, totalPen = 0;
+        let prevSpd = 0, currentSpd = 0;
+        let lastAlertT = -999, lastPenT = -999, smoothStreak = 0;
+        let passedZones = new Set();
+        let alertClrT = null, mfaClrT = null;
+
+        // ── GEO UTILS ─────────────────────────────────────────────
+        function hav(a, b) {
+            const R = 6371000, dL = (b[0] - a[0]) * Math.PI / 180, dO = (b[1] - a[1]) * Math.PI / 180;
+            const s1 = Math.sin(dL / 2), s2 = Math.sin(dO / 2);
+            const q = s1 * s1 + Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * s2 * s2;
+            return R * 2 * Math.atan2(Math.sqrt(q), Math.sqrt(1 - q));
+        }
+
+        function snapToRoute(lat, lon) {
+            let minD = Infinity, idx = 0;
+            for (let i = 0; i < routeCoords.length; i++) {
+                const d = hav([lat, lon], routeCoords[i]);
+                if (d < minD) { minD = d; idx = i; }
+            }
+            return { idx, dist: minD };
+        }
+
+        // ── API CALLS ─────────────────────────────────────────────
+        async function geocode(q) {
+            // Build a list of queries to try in order
+            const stripped = q.replace(/,?\s*(Pune|Maharashtra|India)\s*/gi, '').trim();
+            const puneBbox = '&viewbox=73.7,18.4,74.1,18.7&bounded=0';
+            const attempts = [
+                { q: stripped + ', Pune, Maharashtra, India', extra: puneBbox },
+                { q: stripped + ', Pune', extra: puneBbox },
+                { q: stripped + ', Maharashtra, India', extra: '' },
+                { q: stripped + ', India', extra: '' },
+                { q: q, extra: '' },
+            ];
+            for (const attempt of attempts) {
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(attempt.q)}&limit=3&countrycodes=in${attempt.extra}`;
+                try {
+                    const r = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'ZeroPenalty-Simulator/1.0' } });
+                    if (!r.ok) continue;
+                    const d = await r.json();
+                    if (d.length) {
+                        // Prefer results within Pune region (lat 18.4-18.7, lon 73.7-74.1)
+                        const pune = d.find(x => {
+                            const la = parseFloat(x.lat), lo = parseFloat(x.lon);
+                            return la >= 18.4 && la <= 18.7 && lo >= 73.7 && lo <= 74.1;
+                        });
+                        const best = pune || d[0];
+                        return [parseFloat(best.lat), parseFloat(best.lon)];
+                    }
+                } catch (e) { continue; }
+            }
+            throw new Error('Location not found: ' + q + '. Try adding "Pune" to your query.');
+        }
+
+        async function getRoute(from, to) {
+            const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`);
+            if (!r.ok) throw new Error('Route service unavailable (HTTP ' + r.status + ')');
+            const text = await r.text();
+            let d;
+            try { d = JSON.parse(text); } catch (e) { throw new Error('Route service returned invalid response'); }
+            if (d.code !== 'Ok') throw new Error('Route not found');
+            return { coords: d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]), distKm: d.routes[0].distance / 1000 };
+        }
+
+        async function fetchPOIs(coords) {
+            const lats = coords.map(c => c[0]), lons = coords.map(c => c[1]);
+            const bbox = `${Math.min(...lats) - 0.02},${Math.min(...lons) - 0.02},${Math.max(...lats) + 0.02},${Math.max(...lons) + 0.02}`;
+            const q = `[out:json][timeout:30];(node["amenity"~"school|college|hospital|clinic|marketplace"](${bbox});node["shop"~"mall|supermarket"](${bbox});node["highway"="traffic_signals"](${bbox});node["railway"="level_crossing"](${bbox});way["amenity"~"school|college|hospital|clinic"](${bbox});relation["amenity"~"school|college|hospital"](${bbox}););out center;`;
+            try {
+                const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: q });
+                if (!r.ok) return [];
+                const text = await r.text();
+                let d;
+                try { d = JSON.parse(text); } catch (e) { return []; }
+                return d.elements || [];
+            } catch (e) {
+                addLog('POI fetch failed (offline?). Continuing without risk zones.', 'var(--yellow)');
+                return [];
+            }
+        }
+
+        function poiToZone(el) {
+            const t = el.tags || {};
+            const lat = el.lat || el.center?.lat, lon = el.lon || el.center?.lon;
+            if (!lat || !lon) return null;
+            const nm = t.name || t['name:en'] || '';
+            if (/school|college|university/i.test(t.amenity))
+                return {
+                    lat, lon, emoji: '🏫', type: 'school', color: '#ffc400', label: nm || 'School Zone', speedLimit: 25,
+                    alertMsg: `🏫 School zone${nm ? ' — ' + nm : ''}! Limit 25 km/h`, rewardMsg: '✅ Safe school zone pass!', rew: 20, pen: 40
+                };
+            if (/hospital|clinic/i.test(t.amenity))
+                return {
+                    lat, lon, emoji: '🏥', type: 'hospital', color: '#00c6ff', label: nm || 'Hospital Zone', speedLimit: 20,
+                    alertMsg: `🏥 Hospital zone${nm ? ' — ' + nm : ''}! Limit 20 km/h`, rewardMsg: '✅ Good hospital zone pass!', rew: 20, pen: 40
+                };
+            if (/marketplace/i.test(t.amenity) || /mall|supermarket/i.test(t.shop || ''))
+                return {
+                    lat, lon, emoji: '🏪', type: 'market', color: '#ff6d00', label: nm || 'Market Area', speedLimit: 30,
+                    alertMsg: `🏪 Market area${nm ? ' — ' + nm : ''}! Pedestrians nearby. Limit 30 km/h`, rewardMsg: '✅ Careful market zone pass!', rew: 15, pen: 35
+                };
+            if (t.highway === 'traffic_signals')
+                return {
+                    lat, lon, emoji: '🚦', type: 'signal', color: '#ffab00', label: 'Traffic Signal', speedLimit: 30,
+                    alertMsg: '🚦 Traffic signal ahead! Be ready to stop.', rewardMsg: '✅ Good signal approach!', rew: 10, pen: 25
+                };
+            if (t.railway === 'level_crossing')
+                return {
+                    lat, lon, emoji: '🚂', type: 'crossing', color: '#ff3d57', label: 'Railway Crossing', speedLimit: 15,
+                    alertMsg: '🚂 Railway crossing! Slow down to 15 km/h!', rewardMsg: '✅ Safe railway crossing!', rew: 25, pen: 50
+                };
+            return null;
+        }
+
+        // ── LOAD ROUTE ────────────────────────────────────────────
+        async function loadRoute() {
+            const fromTxt = document.getElementById('inFrom').value.trim();
+            const toTxt = document.getElementById('inTo').value.trim();
+            if (!fromTxt || !toTxt) return;
+            showLoad('Geocoding locations...');
+            resetTrip(false);
+            document.getElementById('goBtn').disabled = true;
+            try {
+                const [fromLL, toLL] = await Promise.all([geocode(fromTxt), geocode(toTxt)]);
+                showLoad('Calculating route...');
+                const { coords, distKm } = await getRoute(fromLL, toLL);
+                routeCoords = coords;
+
+                if (routeLayer) map.removeLayer(routeLayer);
+                routeLayer = L.polyline(coords, { color: '#00c6ff', weight: 5, opacity: 0.85 }).addTo(map);
+                L.marker(coords[0], { icon: mkIcon('A', '#00e676', '#000') }).addTo(map);
+                L.marker(coords[coords.length - 1], { icon: mkIcon('B', '#ff3d57', '#fff') }).addTo(map);
+                map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
+                if (carMarker) map.removeLayer(carMarker);
+                carMarker = L.marker(coords[0], { icon: carIcon }).addTo(map);
+
+                showLoad('Detecting risk zones...');
+                const pois = await fetchPOIs(coords);
+                poiMkrs.forEach(m => map.removeLayer(m)); poiMkrs = []; riskZones = [];
+                const seenIdx = new Set();
+
+                for (const el of pois) {
+                    const zone = poiToZone(el);
+                    if (!zone) continue;
+                    const snap = snapToRoute(zone.lat, zone.lon);
+                    if (snap.dist > 300) continue;
+                    const bucket = Math.floor(snap.idx / 4);
+                    if (seenIdx.has(zone.type + bucket)) continue;
+                    seenIdx.add(zone.type + bucket);
+                    zone.routeIdx = snap.idx;
+
+                    const zi = L.divIcon({ html: `<div style="background:${zone.color}22;border:2px solid ${zone.color};border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px">${zone.emoji}</div>`, className: '', iconSize: [24, 24], iconAnchor: [12, 12] });
+                    const m = L.marker([zone.lat, zone.lon], { icon: zi }).bindPopup(`<b>${zone.label}</b><br>Limit: ${zone.speedLimit} km/h`).addTo(map);
+                    poiMkrs.push(m); riskZones.push(zone);
+                }
+                riskZones.sort((a, b) => a.routeIdx - b.routeIdx);
+
+                addLog(`Route loaded! ${distKm.toFixed(1)} km · ${riskZones.length} risk zones detected`, `var(--green)`);
+                document.getElementById('startBtn').disabled = false;
+                hideLoad();
+            } catch (e) {
+                hideLoad();
+                addLog('Error: ' + e.message, 'var(--red)');
+                showAlert('danger', '❌ ' + e.message, '❌', 4000);
+                console.error(e);
+            }
+            document.getElementById('goBtn').disabled = false;
+        }
+
+        // ── TRIP ──────────────────────────────────────────────────
+        function startTrip() {
+            if (running || !routeCoords.length) return;
+            running = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('startBtn').textContent = '🚗 Driving...';
+            showAlert('info', '🚀 Trip started! Drive safely.', '🚀', 3000);
+            showMFA('info', '🚗 Trip started — A to B!', 3000);
+            addLog('Trip started!', 'var(--accent)');
+            tripTimer = setInterval(tick, 1000);
+        }
+
+        function tick() {
+            if (!running) return;
+            tripTime++;
+            const spd = currentSpd;
+            if (spd > 0) {
+                const steps = Math.max(1, Math.floor(spd / 6));
+                const prevIdx = carIdx;
+                carIdx = Math.min(carIdx + steps, routeCoords.length - 1);
+                if (carIdx > prevIdx) tripDist += hav(routeCoords[prevIdx], routeCoords[carIdx]) / 1000;
+                if (carMarker) carMarker.setLatLng(routeCoords[carIdx]);
+                if (spd > 5) map.panTo(routeCoords[carIdx], { animate: true, duration: 0.9 });
+            }
+
+            // Risk zone check
+            for (const zone of riskZones) {
+                const zid = `${zone.type}_${zone.routeIdx}`;
+                const ahead = zone.routeIdx - carIdx;
+                if (!passedZones.has(zid) && ahead >= 0 && ahead < Math.max(4, Math.floor(spd / 6) + 3)) {
+                    passedZones.add(zid);
+                    showMFA('warn', zone.alertMsg, 5500);
+                    showAlert('warn', zone.alertMsg, zone.emoji, 5500);
+                    addLog(`⚠️ Approaching: ${zone.label} (limit ${zone.speedLimit} km/h)`, zone.color);
+                    speak(zone.alertMsg.replace(/[^\w\s.,!?]/g, ''));
+
+                    setTimeout(() => {
+                        const ns = currentSpd;
+                        if (ns <= zone.speedLimit + 5) {
+                            totalRew += zone.rew; updateScore(+3);
+                            addLog(`${zone.rewardMsg} +₹${zone.rew}`, 'var(--green)');
+                            onZoneSafe();
+                            showMFA('info', `${zone.rewardMsg} +₹${zone.rew}`, 3000);
+                        } else {
+                            totalPen += zone.pen; updateScore(-5); events++;
+                            addLog(`🚨 Zone violation: ${zone.label} at ${ns} km/h! -₹${zone.pen}`, 'var(--red)');
+                            showMFA('danger', `🚨 Too fast in ${zone.label}! -₹${zone.pen}`, 4000);
+                            speak(`Warning! Reduce speed in ${zone.label.replace(/[^\w\s]/g, '')}.`);
+                        }
+                        refreshUI();
+                    }, 3200);
+                }
+            }
+
+            // Hard braking
+            const delta = spd - prevSpd;
+            if (delta < -18 && tripTime - lastPenT > 5) {
+                events++; totalPen += 30; updateScore(-4); lastPenT = tripTime;
+                showMFA('danger', '🛑 Hard braking! -₹30', 4000);
+                showAlert('danger', '🛑 Hard braking detected! Brake gradually. -₹30', '🛑', 4000);
+                speak('Hard braking detected! Slow down gradually.');
+                addLog(`Hard brake: ${prevSpd}→${spd} km/h. -₹30`, 'var(--red)');
+            }
+
+            // Rapid acceleration
+            if (delta > 22 && tripTime - lastPenT > 5) {
+                events++; totalPen += 20; updateScore(-2); lastPenT = tripTime;
+                showMFA('warn', '⚡ Rapid acceleration! -₹20', 3500);
+                speak('Rapid acceleration. Take it easy.');
+                addLog(`Rapid acceleration +${delta} km/h. -₹20`, 'var(--orange)');
+            }
+
+            // Speeding
+            if (spd > 70 && tripTime - lastPenT > 8) {
+                events++; totalPen += 35; updateScore(-3); lastPenT = tripTime;
+                showMFA('danger', `🚨 Speeding! ${spd} km/h — Slow down! -₹35`, 4000);
+                speak(`Warning! You are going ${spd} kilometres per hour. Please slow down immediately.`);
+                addLog(`Speeding: ${spd} km/h. -₹35`, 'var(--red)');
+            } else if (spd > 50 && spd <= 70 && tripTime - lastAlertT > 12) {
+                lastAlertT = tripTime;
+                showMFA('warn', `⚠️ ${spd} km/h — Consider slowing down`, 3000);
+            }
+
+            // Sharp turn detection (simplified: route angle change)
+            if (carIdx > 3 && carIdx < routeCoords.length - 3) {
+                const p1 = routeCoords[carIdx - 2], p2 = routeCoords[carIdx], p3 = routeCoords[carIdx + 2];
+                const angle = getAngle(p1, p2, p3);
+                if (angle < 110 && spd > 40 && tripTime - lastAlertT > 10) {
+                    lastAlertT = tripTime;
+                    showMFA('warn', '⚠️ Sharp turn ahead! Slow down!', 3000);
+                    speak('Sharp turn ahead. Please slow down.');
+                    addLog('Sharp turn detected — slow down!', 'var(--yellow)');
+                }
+            }
+
+            // Smooth driving reward
+            if (spd > 0 && spd <= 50 && Math.abs(delta) <= 8) {
+                smoothStreak++;
+                if (smoothStreak % 12 === 0) {
+                    totalRew += 10; updateScore(+1);
+                    addLog('🏅 Smooth driving! +₹10', 'var(--green)');
+                }
+            } else smoothStreak = 0;
+
+            onTick(spd, spd > 70);
+            prevSpd = spd;
+
+            if (carIdx >= routeCoords.length - 1) { endTrip(); return; }
+            refreshUI();
+        }
+
+        function getAngle(p1, p2, p3) {
+            const a = [p2[0] - p1[0], p2[1] - p1[1]], b = [p3[0] - p2[0], p3[1] - p2[1]];
+            const dot = a[0] * b[0] + a[1] * b[1];
+            const ma = Math.sqrt(a[0] * a[0] + a[1] * a[1]), mb = Math.sqrt(b[0] * b[0] + b[1] * b[1]);
+            if (ma === 0 || mb === 0) return 180;
+            return Math.acos(Math.min(1, Math.max(-1, dot / (ma * mb)))) * 180 / Math.PI;
+        }
+
+        function endTrip() {
+            running = false; clearInterval(tripTimer);
+            const net = totalRew - totalPen;
+            const msg = `🏁 Trip complete! Score: ${Math.round(score)} | Net: ₹${net}`;
+            showMFA(net >= 0 ? 'info' : 'warn', msg, 8000);
+            showAlert(net >= 0 ? 'info' : 'warn', msg, '🏁', 8000);
+            addLog(msg, 'var(--accent)');
+            speak(msg.replace(/[₹🏁]/g, '').replace('₹', 'rupees'));
+            document.getElementById('startBtn').textContent = '✅ Arrived!';
+            const _rn = (document.getElementById('inFrom').value.split(',')[0] + ' → ' + document.getElementById('inTo').value.split(',')[0]);
+            onTripEnd(score, tripDist, events, LS._tSpeedVio, (totalRew - totalPen), _rn);
+            refreshUI();
+        }
+
+        function resetTrip(full = true) {
+            running = false; clearInterval(tripTimer);
+            window.speechSynthesis && window.speechSynthesis.cancel();
+            tripTime = 0; tripDist = 0; carIdx = 0; score = 80; events = 0;
+            totalRew = 0; totalPen = 0; prevSpd = 0; currentSpd = 0;
+            lastAlertT = -999; lastPenT = -999; smoothStreak = 0;
+            passedZones = new Set();
+
+            document.getElementById('spdSlider').value = 0;
+            document.getElementById('spdDisp').innerHTML = '0 <span>km/h</span>';
+            document.getElementById('alertStrip').style.display = 'none';
+            document.getElementById('mapFloatAlert').style.display = 'none';
+            document.getElementById('logCont').innerHTML = '<div class="log-item"><div class="log-dot" style="background:var(--muted)"><\/div><span class="log-time">--:--<\/span><span>Waiting for trip to start...<\/span><\/div>';
+            document.getElementById('startBtn').textContent = '▶ Start Trip';
+
+            if (full) {
+                if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+                poiMkrs.forEach(m => map.removeLayer(m)); poiMkrs = [];
+                if (carMarker) { map.removeLayer(carMarker); carMarker = null; }
+                routeCoords = []; riskZones = [];
+                document.getElementById('startBtn').disabled = true;
+            } else {
+                document.getElementById('startBtn').disabled = !routeCoords.length;
+                if (carMarker && routeCoords.length) carMarker.setLatLng(routeCoords[0]);
+            }
+            updateScore(0); refreshUI();
+        }
+
+        // ── UI HELPERS ────────────────────────────────────────────
+        function onSpd(v) { currentSpd = parseInt(v); document.getElementById('spdDisp').innerHTML = `${v} <span>km/h</span>`; }
+
+        function updateScore(d) {
+            score = Math.max(0, Math.min(100, score + d));
+            const el = document.getElementById('scoreDisp');
+            el.textContent = Math.round(score);
+            el.style.color = score >= 80 ? 'var(--green)' : score >= 60 ? 'var(--yellow)' : 'var(--red)';
+        }
+
+        function refreshUI() {
+            const m = Math.floor(tripTime / 60), s = tripTime % 60;
+            document.getElementById('stTime').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+            document.getElementById('stDist').textContent = tripDist.toFixed(2);
+            document.getElementById('stEvt').textContent = events;
+            const pct = routeCoords.length > 1 ? Math.round((carIdx / (routeCoords.length - 1)) * 100) : 0;
+            document.getElementById('stPct').textContent = pct + '%';
+            document.getElementById('mRew').textContent = '₹' + totalRew;
+            document.getElementById('mPen').textContent = '-₹' + totalPen;
+            const net = totalRew - totalPen;
+            document.getElementById('mNet').textContent = (net >= 0 ? '₹' : '-₹') + Math.abs(net);
+            document.getElementById('mNet').className = 'mv ' + (net >= 0 ? 'pos' : 'neg');
+        }
+
+        function showAlert(type, text, icon, dur) {
+            const el = document.getElementById('alertStrip');
+            el.className = 'alert-strip ' + type;
+            el.style.display = 'flex';
+            document.getElementById('alertIcon').textContent = icon || '⚠️';
+            document.getElementById('alertText').textContent = text;
+            if (alertClrT) clearTimeout(alertClrT);
+            alertClrT = setTimeout(() => { el.style.display = 'none'; }, dur || 4000);
+        }
+
+        function showMFA(type, text, dur) {
+            const el = document.getElementById('mapFloatAlert');
+            el.className = type; el.style.display = 'flex';
+            document.getElementById('mfaIcon').textContent = type === 'danger' ? '🚨' : type === 'warn' ? '⚠️' : 'ℹ️';
+            document.getElementById('mfaText').textContent = text;
+            if (mfaClrT) clearTimeout(mfaClrT);
+            mfaClrT = setTimeout(() => { el.style.display = 'none'; }, dur || 4000);
+        }
+
+        function addLog(text, color) {
+            const m = Math.floor(tripTime / 60), s = tripTime % 60;
+            const t = `${m}:${s.toString().padStart(2, '0')}`;
+            const el = document.getElementById('logCont');
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.innerHTML = `<div class="log-dot" style="background:${color}"></div><span class="log-time">${t}</span><span>${text}</span>`;
+            el.insertBefore(item, el.firstChild);
+            if (el.children.length > 25) el.removeChild(el.lastChild);
+        }
+
+        function speak(txt) {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(txt.replace(/[^\w\s.,!?]/g, ''));
+            u.rate = 1.05; u.pitch = 1.1; u.lang = 'en-IN';
+            window.speechSynthesis.speak(u);
+        }
+
+        function showLoad(msg) { document.getElementById('loadOv').style.display = 'flex'; document.getElementById('loadTxt').textContent = msg; }
+        function hideLoad() { document.getElementById('loadOv').style.display = 'none'; }
+
+        // ── PRESET ROUTES ─────────────────────────────────────────
+        const PRESETS = [
+            { from: 'Swargate, Pune', to: 'Bibwewadi, Pune' },
+            { from: 'Wagholi, Pune', to: 'Hinjewadi, Pune' },
+            { from: 'Yerawada, Pune', to: 'Sangamwadi, Pune' },
+
+        ];
+
+        function setPreset(idx) {
+            document.querySelectorAll('.preset-btn').forEach((b, i) => {
+                b.classList.toggle('active', i === idx);
+            });
+            document.getElementById('inFrom').value = PRESETS[idx].from;
+            document.getElementById('inTo').value = PRESETS[idx].to;
+            loadRoute();
+        }
+
+
+        // ═══════════════════════════════════════════════════════════
+        // ACHIEVEMENTS SYSTEM
+        // ═══════════════════════════════════════════════════════════
+
+        const BADGES = [
+            {
+                id: 'smooth', emoji: '🕊️', bg: '#1a3a5c', stroke: '#00c6ff', name: 'Smooth Rider',
+                desc: 'Complete a trip with zero hard braking events',
+                check: s => s.tripsDone >= 1 && s.lastTripBrakes === 0,
+                prog: s => s.lastTripBrakes === 0 && s.tripsDone > 0 ? 1 : 0
+            },
+
+            {
+                id: 'take_brake', emoji: '🛑', bg: '#1a3320', stroke: '#00e676', name: 'Take a Brake',
+                desc: '15 trips rated 4+ stars on braking — No hard braking events for 15 trips!',
+                check: s => s.cleanBrakeTrips >= 15,
+                prog: s => Math.min(1, s.cleanBrakeTrips / 15),
+                lbl: s => `${s.cleanBrakeTrips}/15 trips`
+            },
+
+            {
+                id: 'zone_grd', emoji: '🏫', bg: '#332200', stroke: '#ffc400', name: 'Zone Guardian',
+                desc: 'Pass 10 risk zones safely without speeding',
+                check: s => s.safeZones >= 10,
+                prog: s => Math.min(1, s.safeZones / 10),
+                lbl: s => `${s.safeZones}/10 zones`
+            },
+
+            {
+                id: 'no_spd', emoji: '🐢', bg: '#2a1500', stroke: '#ff6d00', name: 'No Need for Speed',
+                desc: 'Complete 5 trips with zero speeding events',
+                check: s => s.noSpeedTrips >= 5,
+                prog: s => Math.min(1, s.noSpeedTrips / 5),
+                lbl: s => `${s.noSpeedTrips}/5 trips`
+            },
+
+            {
+                id: 'cruise', emoji: '🚗', bg: '#001a2e', stroke: '#00c6ff', name: 'Cruise Control',
+                desc: 'Drive a total of 20 km across all trips',
+                check: s => s.totalKm >= 20,
+                prog: s => Math.min(1, s.totalKm / 20),
+                lbl: s => `${s.totalKm.toFixed(1)}/20 km`
+            },
+
+            {
+                id: 'opt_spd', emoji: '⚡', bg: '#332800', stroke: '#ffc400', name: 'Optimum Speeder',
+                desc: 'Keep speed between 30–50 km/h for 80%+ of a full trip',
+                check: s => s.optTrips >= 1,
+                prog: s => s.optTrips >= 1 ? 1 : 0
+            },
+
+            {
+                id: 'money', emoji: '💰', bg: '#0d2a12', stroke: '#00e676', name: 'Money Maker',
+                desc: 'Earn a total of ₹100 in rewards across all trips',
+                check: s => s.lifeRew >= 100,
+                prog: s => Math.min(1, s.lifeRew / 100),
+                lbl: s => `₹${s.lifeRew}/₹100`
+            },
+
+            {
+                id: 'explorer', emoji: '🗺️', bg: '#0d1e33', stroke: '#00c6ff', name: 'Pune Explorer',
+                desc: 'Complete all available preset routes',
+                check: s => s.routes.size >= 3,
+                prog: s => Math.min(1, s.routes.size / 3),
+                lbl: s => `${s.routes.size}/3 routes`
+            },
+
+            {
+                id: 'safe_drv', emoji: '🦺', bg: '#1a0d2e', stroke: '#9c27b0', name: 'Safe Driver',
+                desc: 'Complete 3 trips with a score of 80 or above',
+                check: s => s.hiScoreTrips >= 3,
+                prog: s => Math.min(1, s.hiScoreTrips / 3),
+                lbl: s => `${s.hiScoreTrips}/3 trips`
+            },
+        ];
+
+        let LS = {
+            tripsDone: 0, lastTripBrakes: 0, cleanBrakeTrips: 0, safeZones: 0,
+            noSpeedTrips: 0, totalKm: 0, optTrips: 0, lifeRew: 0, hiScoreTrips: 0,
+            routes: new Set(), unlocked: new Set(),
+            _tBrakes: 0, _tSpeedVio: 0, _tOptTicks: 0, _tTotalTicks: 0,
+        };
+
+        function shieldSVG(bg, stroke, emoji, size = 68) {
+            const h = Math.round(size * 1.18);
+            return `<div style="width:${size}px;height:${h}px;margin:0 auto;position:relative;">
+    <svg viewBox="0 0 80 96" width="${size}" height="${h}">
+      <path d="M40 4L74 18L74 50C74 70 56 86 40 93C24 86 6 70 6 50L6 18Z" fill="${bg}" stroke="${stroke}" stroke-width="3.5"/>
+      <path d="M40 11L67 23L67 50C67 66 53 80 40 87C27 80 13 66 13 50L13 23Z" fill="${bg}" opacity="0.5"/>
+    </svg>
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-55%);font-size:${Math.round(size * 0.37)}px;line-height:1">${emoji}</div>
+  </div>`;
+        }
+
+        // Called after each trip
+        function onTripEnd(sc, km, brakes, speedVio, rew, routeName) {
+            LS.tripsDone++;
+            LS.lastTripBrakes = brakes;
+            LS.totalKm += km;
+            LS.lifeRew += Math.max(0, rew);
+            if (sc >= 80) LS.hiScoreTrips++;
+            if (brakes === 0) LS.cleanBrakeTrips++;
+            if (speedVio === 0) LS.noSpeedTrips++;
+            if (LS._tTotalTicks > 0 && (LS._tOptTicks / LS._tTotalTicks) >= 0.8) LS.optTrips++;
+            if (routeName) LS.routes.add(routeName);
+            LS._tBrakes = 0; LS._tSpeedVio = 0; LS._tOptTicks = 0; LS._tTotalTicks = 0;
+
+            // Check newly unlocked
+            const fresh = [];
+            for (const b of BADGES) {
+                if (!LS.unlocked.has(b.id) && b.check(LS)) {
+                    LS.unlocked.add(b.id); fresh.push(b);
+                }
+            }
+
+            // Issue vehicle coupons for newly unlocked badges
+            for (const nb of fresh) {
+                addCouponForBadge(nb);
+            }
+
+            updateBubble();
+            showTripResult(sc, km, brakes, speedVio, rew, routeName, fresh);
+            renderGrid();
+        }
+
+        function onZoneSafe() { LS.safeZones++; }
+
+        function onTick(spd, isSpeedVio) {
+            LS._tTotalTicks++;
+            if (spd >= 30 && spd <= 50) LS._tOptTicks++;
+            if (isSpeedVio) LS._tSpeedVio++;
+        }
+
+        function updateBubble() {
+            const n = LS.unlocked.size;
+            const b = document.getElementById('badgeBubble');
+            b.textContent = n; b.style.display = n > 0 ? 'inline' : 'none';
+        }
+
+        // ── TRIP RESULT POPUP ──────────────────────────────────────
+        function showTripResult(sc, km, brakes, speedVio, rew, routeName, newBadges) {
+            const net = rew;
+            const m = Math.floor(tripTime / 60), s = tripTime % 60;
+            document.getElementById('trRoute').textContent = routeName || '';
+            document.getElementById('trScoreNum').textContent = Math.round(sc);
+            document.getElementById('trScoreNum').style.color = sc >= 80 ? 'var(--green)' : sc >= 60 ? 'var(--yellow)' : 'var(--red)';
+            // Arc
+            const arc = document.getElementById('trArc');
+            arc.style.stroke = sc >= 80 ? '#00e676' : sc >= 60 ? '#ffc400' : '#ff3d57';
+            arc.style.strokeDashoffset = 239 - (sc / 100) * 239 * 0.76;
+            document.getElementById('trDist').textContent = km.toFixed(2);
+            document.getElementById('trTime').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+            document.getElementById('trEvt').textContent = brakes + speedVio;
+            document.getElementById('trNet').textContent = (net >= 0 ? '₹' : '-₹') + Math.abs(net);
+            document.getElementById('trNet').style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+
+            const row = document.getElementById('trBadgeRow');
+            if (newBadges.length > 0) {
+                row.innerHTML = newBadges.map(b => {
+                    const def = COUPON_DEFS && COUPON_DEFS[b.id];
+                    return `<div class="tr-badge-pill">${b.emoji} ${b.name}${def ? ' <span style="font-size:0.6rem;color:var(--orange);margin-left:2px">+🎟️${def.title}</span>' : ''}</div>`;
+                }).join('');
+            } else {
+                row.innerHTML = '<span style="font-size:0.72rem;color:var(--muted)">Keep driving safely to earn badges!</span>';
+            }
+            document.getElementById('trOverlay').classList.add('open');
+
+            // Show badge toasts after popup closes (or queue them)
+            if (newBadges.length > 0) {
+                setTimeout(() => {
+                    let d = 0;
+                    for (const b of newBadges) {
+                        setTimeout(() => showNBT(b), d);
+                        d += 3200;
+                    }
+                }, 4000);
+            }
+        }
+
+        function closeTripResult() {
+            document.getElementById('trOverlay').classList.remove('open');
+        }
+
+        // ── NEW BADGE TOAST ────────────────────────────────────────
+        let _nbtTimer = null;
+        function showNBT(badge) {
+            document.getElementById('nbtShield').innerHTML = shieldSVG(badge.bg, badge.stroke, badge.emoji, 44);
+            document.getElementById('nbtName').textContent = badge.name;
+            document.getElementById('nbtDesc').textContent = badge.desc.substring(0, 50) + '...';
+            const t = document.getElementById('nbtToast');
+            t.style.display = 'flex';
+            if (_nbtTimer) clearTimeout(_nbtTimer);
+            _nbtTimer = setTimeout(() => { t.style.display = 'none'; }, 3000);
+        }
+
+        // ── ACHIEVEMENTS SHEET ─────────────────────────────────────
+        function openAch() {
+            updateAchStats(); renderGrid();
+            document.getElementById('achOverlay').classList.add('open');
+        }
+        function closeAch() { document.getElementById('achOverlay').classList.remove('open'); }
+
+        function updateAchStats() {
+            document.getElementById('achTotalBadges').textContent = LS.unlocked.size + '/' + BADGES.length;
+            document.getElementById('achTotalTrips').textContent = LS.tripsDone;
+            document.getElementById('achTotalKm').textContent = LS.totalKm.toFixed(1);
+            document.getElementById('achLifeRew').textContent = '₹' + LS.lifeRew;
+        }
+
+        function renderGrid() {
+            const g = document.getElementById('achGrid');
+            g.innerHTML = '';
+            for (const b of BADGES) {
+                const unlocked = LS.unlocked.has(b.id);
+                const p = b.prog(LS);
+                const lbl = b.lbl ? b.lbl(LS) : '';
+                const card = document.createElement('div');
+                card.className = 'bc ' + (unlocked ? 'unlocked' : 'locked');
+                card.onclick = () => openBD(b, unlocked);
+                card.innerHTML = `
+      ${unlocked ? '<div class="star-stamp">⭐</div>' : ''}
+      <div class="shield-wrap">${shieldSVG(b.bg, b.stroke, b.emoji)}</div>
+      <div class="bc-name">${b.name}</div>
+      ${!unlocked && p > 0 ? `<div class="bc-prog"><div class="bc-prog-fill" style="width:${Math.round(p * 100)}%;background:${b.stroke}"></div></div><div class="bc-prog-lbl">${lbl}</div>` : ''}
+      ${unlocked ? '<div class="bc-done">✓ UNLOCKED</div>' : ''}
+    `;
+                g.appendChild(card);
+            }
+            updateAchStats();
+        }
+
+        // ── BADGE DETAIL ───────────────────────────────────────────
+        function openBD(badge, unlocked) {
+            document.getElementById('bdShieldLg').innerHTML = shieldSVG(badge.bg, badge.stroke, badge.emoji, 100);
+            document.getElementById('bdTitle').textContent = badge.name;
+            document.getElementById('bdTitle').style.color = unlocked ? badge.stroke : 'var(--text)';
+            document.getElementById('bdSub').textContent = unlocked ? '✅ Badge Unlocked' : '🔒 Not yet earned';
+            document.getElementById('bdDesc').textContent = badge.desc;
+            document.getElementById('bdCongrats').textContent = unlocked ? 'Excellent, you did it! You\'ve earned this badge! 🎉' : '';
+            document.getElementById('bdOverlay').classList.add('open');
+        }
+        function closeBD() { document.getElementById('bdOverlay').classList.remove('open'); }
+
+        window.addEventListener('load', () => setTimeout(() => { renderGrid(); updateBubble(); }, 900));
+
+        // ═══════════════════════════════════════════════════════════
+        // COUPON SYSTEM
+        // ═══════════════════════════════════════════════════════════
+
+        // Coupon definitions per badge id
+        const COUPON_DEFS = {
+            'smooth': { emoji: '🛢️', title: '5% OFF FUEL', offer: '5% discount on your next fuel fill', where: 'Any petrol pump (HP, Indian Oil, BPCL)', days: 7 },
+            'take_brake': { emoji: '🔧', title: 'FREE BRAKE INSPECTION', offer: 'Free brake inspection at authorized service center', where: 'Bajaj Auto Service / authorized garages', days: 30 },
+            'zone_grd': { emoji: '🅿️', title: '2 HRS FREE PARKING', offer: 'Free 2-hour parking at SmartPark lots', where: 'Any SmartPark or PMRDA parking lot', days: 15 },
+            'no_spd': { emoji: '🛢️', title: '₹50 OFF FUEL', offer: '₹50 off on fuel fill above ₹500', where: 'Any petrol pump (HP, Indian Oil, BPCL)', days: 10 },
+            'cruise': { emoji: '🔩', title: 'FREE TYRE CHECK', offer: 'Free tyre pressure & air check', where: 'Any authorized service center', days: 30 },
+            'opt_spd': { emoji: '🛻', title: '10% OFF SERVICE', offer: '10% off next full vehicle service', where: 'Partner garages in Pune', days: 45 },
+            'money': { emoji: '🛢️', title: '₹100 OFF FUEL', offer: '₹100 off on fuel fill above ₹1000', where: 'Any petrol pump (HP, Indian Oil, BPCL)', days: 14 },
+            'explorer': { emoji: '🚗', title: 'FREE CAR WASH', offer: 'Free car wash at any partner station', where: 'WashKing / ShineAuto / partner stations', days: 20 },
+            'safe_drv': { emoji: '🔧', title: 'FREE OIL CHECK', offer: 'Free oil level & coolant check', where: 'Any authorized service center', days: 30 },
+        };
+
+        // Earned coupons store: { code, badgeId, badgeName, status:'available'|'used'|'expired', unlockedAt, expiresAt, ...def }
+        let earnedCoupons = [];
+        let cpnFilter = 'all';
+        let cpnToastTimer = null;
+
+        function genCode() {
+            return 'DG-' + Math.random().toString(36).toUpperCase().slice(2, 8);
+        }
+
+        function createCoupon(badge) {
+            const def = COUPON_DEFS[badge.id];
+            if (!def) return null;
+            const now = Date.now();
+            return {
+                code: genCode(),
+                badgeId: badge.id,
+                badgeName: badge.name,
+                badgeEmoji: badge.emoji,
+                status: 'available',
+                unlockedAt: now,
+                expiresAt: now + def.days * 86400000,
+                ...def
+            };
+        }
+
+        function addCouponForBadge(badge) {
+            const cpn = createCoupon(badge);
+            if (!cpn) return;
+            earnedCoupons.push(cpn);
+            updateCouponBubble();
+            showCouponToast(cpn);
+        }
+
+        function updateCouponBubble() {
+            const avail = earnedCoupons.filter(c => c.status === 'available').length;
+            const el = document.getElementById('couponBubble');
+            el.textContent = avail;
+            el.style.display = avail > 0 ? 'inline' : 'none';
+        }
+
+        function showCouponToast(cpn) {
+            document.getElementById('cpnToastTxt').textContent = '🎟️ Coupon Unlocked! ' + cpn.title;
+            document.getElementById('cpnToastSub').textContent = cpn.offer + ' · ' + cpn.where;
+            const t = document.getElementById('cpnToast');
+            t.style.display = 'flex';
+            if (cpnToastTimer) clearTimeout(cpnToastTimer);
+            cpnToastTimer = setTimeout(() => { t.style.display = 'none'; }, 4000);
+        }
+
+        function getCouponStatus(cpn) {
+            if (cpn.status === 'used') return 'used';
+            if (Date.now() > cpn.expiresAt) return 'expired';
+            return 'available';
+        }
+
+        function daysLeft(cpn) {
+            const ms = cpn.expiresAt - Date.now();
+            return Math.max(0, Math.ceil(ms / 86400000));
+        }
+
+        function openCoupons() {
+            // Sync expiry
+            earnedCoupons.forEach(c => { if (c.status === 'available' && Date.now() > c.expiresAt) c.status = 'expired'; });
+            updateCouponBubble();
+            renderCoupons();
+            document.getElementById('cpnOverlay').classList.add('open');
+        }
+
+        function closeCoupons() {
+            document.getElementById('cpnOverlay').classList.remove('open');
+        }
+
+        function setCpnFilter(f, btn) {
+            cpnFilter = f;
+            document.querySelectorAll('.cpn-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderCoupons();
+        }
+
+        function copyCode(code, btn) {
+            navigator.clipboard.writeText(code).then(() => {
+                const orig = btn.textContent;
+                btn.textContent = '✅ Copied!';
+                btn.style.borderColor = 'var(--green)';
+                btn.style.color = 'var(--green)';
+                setTimeout(() => { btn.textContent = orig; btn.style.borderColor = ''; btn.style.color = ''; }, 2000);
+            }).catch(() => {
+                btn.textContent = code; // fallback show code
+            });
+        }
+
+        function markUsed(idx) {
+            earnedCoupons[idx].status = 'used';
+            updateCouponBubble();
+            renderCoupons();
+            // also refresh badge detail if open
+        }
+
+        function renderCoupons() {
+            const list = document.getElementById('cpnList');
+            // sync expiry
+            earnedCoupons.forEach(c => { if (c.status === 'available' && Date.now() > c.expiresAt) c.status = 'expired'; });
+
+            const filtered = cpnFilter === 'all' ? earnedCoupons
+                : earnedCoupons.filter(c => getCouponStatus(c) === cpnFilter);
+
+            if (filtered.length === 0) {
+                const msgs = {
+                    all: '🎟️ No coupons yet.\nComplete trips & earn badges to unlock coupons!',
+                    available: '✅ No available coupons right now.',
+                    used: 'No used coupons yet.',
+                    expired: 'No expired coupons.'
+                };
+                list.innerHTML = `<div class="cpn-empty">${msgs[cpnFilter]}</div>`;
+                return;
+            }
+
+            list.innerHTML = '';
+            filtered.forEach((cpn, fi) => {
+                // find original index
+                const realIdx = earnedCoupons.indexOf(cpn);
+                const st = getCouponStatus(cpn);
+                const dl = daysLeft(cpn);
+                const expiryTxt = st === 'used' ? 'Used' : st === 'expired' ? 'Expired' : dl <= 2 ? `⚠️ Expires in ${dl} day${dl !== 1 ? 's' : ''}!` : `Expires in ${dl} days`;
+                const urgent = dl <= 2 && st === 'available';
+
+                const card = document.createElement('div');
+                card.className = 'cpn-card ' + st;
+                card.innerHTML = `
+      <div class="cpn-card-top">
+        <div class="cpn-left-stripe ${st}"></div>
+        <div class="cpn-main">
+          <div class="cpn-badge-row">
+            <span class="cpn-emoji">${cpn.badgeEmoji}</span>
+            <span class="cpn-badge-name">🏆 ${cpn.badgeName}</span>
+          </div>
+          <div class="cpn-title">${cpn.title}</div>
+          <div class="cpn-desc">${cpn.offer}</div>
+          <div class="cpn-where">📍 ${cpn.where}</div>
+        </div>
+      </div>
+      <div class="cpn-tear"></div>
+      <div class="cpn-bottom">
+        <div class="cpn-code-box">
+          <span class="cpn-code">${cpn.code}</span>
+          ${st === 'available' ? `<button class="cpn-copy-btn" onclick="copyCode('${cpn.code}',this)">📋 Copy</button>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <span class="cpn-expiry ${urgent ? 'urgent' : ''}">${expiryTxt}</span>
+          ${st === 'available' ? `<button class="cpn-use-btn" onclick="markUsed(${realIdx})">Mark Used ✓</button>` : ''}
+        </div>
+      </div>
+      ${st === 'used' ? '<div class="cpn-used-stamp">USED</div>' : ''}
+    `;
+                list.appendChild(card);
+            });
+        }
+
+        // Hook into badge unlock — add coupon for each new badge
+        // Coupon issuance handled inside onTripEnd
+
+        // Patch showNBT to also show coupon toast
+        const _origShowNBT = showNBT;
+
+        // ── PATCH openBD to show coupon info ─────────────────────
+        const _origOpenBD = openBD;
+        function openBD(badge, unlocked) {
+            _origOpenBD(badge, unlocked);
+            // Add coupon section to bd-body
+            const body = document.querySelector('.bd-body');
+            if (!body) return;
+            let cpnSec = document.getElementById('bdCpnSec');
+            if (cpnSec) cpnSec.remove();
+
+            if (!unlocked) return; // locked badges show no coupon
+
+            const def = COUPON_DEFS[badge.id];
+            if (!def) return;
+
+            const existingCpn = earnedCoupons.find(c => c.badgeId === badge.id);
+            const sec = document.createElement('div');
+            sec.id = 'bdCpnSec';
+            sec.className = 'bd-coupon-section';
+
+            if (existingCpn) {
+                const st = getCouponStatus(existingCpn);
+                const dl = daysLeft(existingCpn);
+                sec.innerHTML = `
+      <div class="bd-cpn-title">🎟️ YOUR VEHICLE COUPON</div>
+      <div class="bd-cpn-offer">${def.emoji} ${def.title}</div>
+      <div class="bd-cpn-where">📍 ${def.where}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-family:'Rajdhani',sans-serif;font-size:0.85rem;font-weight:700;letter-spacing:2px;color:var(--yellow);background:rgba(255,196,0,0.08);border:1px solid rgba(255,196,0,0.2);border-radius:6px;padding:3px 8px;">${existingCpn.code}</span>
+        <button class="cpn-copy-btn" onclick="copyCode('${existingCpn.code}',this)">📋 Copy</button>
+      </div>
+      <button class="bd-cpn-btn" ${st !== 'available' ? 'disabled' : ''} onclick="openCoupons()">
+        ${st === 'available' ? `View Coupon (${dl} days left)` : `Coupon ${st.charAt(0).toUpperCase() + st.slice(1)}`}
+      </button>`;
+            } else {
+                sec.innerHTML = `
+      <div class="bd-cpn-title">🎟️ VEHICLE COUPON EARNED</div>
+      <div class="bd-cpn-offer">${def.emoji} ${def.title}</div>
+      <div class="bd-cpn-where">📍 ${def.where} · Valid ${def.days} days</div>
+      <button class="bd-cpn-btn" onclick="openCoupons()">View in My Coupons</button>`;
+            }
+            body.appendChild(sec);
+        }
+
+        // Coupon issuance is handled inside onTripEnd directly
+
+
+        // Auto-load on start
+        window.addEventListener('load', () => setTimeout(() => setPreset(0), 600));
+    </script>
+
+    <!-- ACHIEVEMENTS SHEET -->
+    <div class="ach-overlay" id="achOverlay" onclick="if(event.target===this)closeAch()">
+        <div class="ach-sheet">
+            <div class="ach-top">
+                <div class="ach-top-title">🏆 ACHIEVEMENTS</div>
+                <div class="ach-close-btn" onclick="closeAch()">✕</div>
+            </div>
+            <div class="ach-stats-bar">
+                <div class="ach-stat">
+                    <div class="asv" id="achTotalBadges">0</div>
+                    <div class="asl">Badges</div>
+                </div>
+                <div class="ach-stat">
+                    <div class="asv" id="achTotalTrips">0</div>
+                    <div class="asl">Trips</div>
+                </div>
+                <div class="ach-stat">
+                    <div class="asv" id="achTotalKm">0</div>
+                    <div class="asl">Total km</div>
+                </div>
+                <div class="ach-stat">
+                    <div class="asv" id="achLifeRew">₹0</div>
+                    <div class="asl">Earned</div>
+                </div>
+            </div>
+            <div class="ach-grid" id="achGrid"></div>
+        </div>
+    </div>
+
+    <!-- BADGE DETAIL POPUP -->
+    <div class="bd-overlay" id="bdOverlay" onclick="if(event.target===this)closeBD()">
+        <div class="bd-card">
+            <div class="bd-top">
+                <button class="bd-close" onclick="closeBD()">✕</button>
+                <div class="bd-shield-lg" id="bdShieldLg"></div>
+                <div class="bd-title" id="bdTitle"></div>
+                <div class="bd-sub" id="bdSub"></div>
+            </div>
+            <div class="bd-body">
+                <p id="bdDesc"></p>
+                <div class="bd-congrats" id="bdCongrats"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TRIP RESULT POPUP -->
+    <div class="trip-result-overlay" id="trOverlay">
+        <div class="trip-result-card">
+            <div class="tr-header">
+                <h2 style="color:var(--accent)">🏁 Trip Complete!</h2>
+                <div style="font-size:0.75rem;color:var(--muted);margin-top:3px" id="trRoute"></div>
+                <div class="tr-score-ring" id="trScoreRing">
+                    <svg viewBox="0 0 90 90">
+                        <circle cx="45" cy="45" r="38" fill="none" stroke="#1e2f4a" stroke-width="7" />
+                        <circle id="trArc" cx="45" cy="45" r="38" fill="none" stroke="#00e676" stroke-width="7"
+                            stroke-linecap="round" stroke-dasharray="239" stroke-dashoffset="60"
+                            transform="rotate(-90 45 45)" />
+                    </svg>
+                    <div style="text-align:center">
+                        <div class="tr-score-num" id="trScoreNum">80</div>
+                        <div class="tr-score-lbl">SCORE</div>
+                    </div>
+                </div>
+            </div>
+            <div class="tr-stats">
+                <div class="tr-stat">
+                    <div class="tv" id="trDist">0.0</div>
+                    <div class="tl">km driven</div>
+                </div>
+                <div class="tr-stat">
+                    <div class="tv" id="trTime">0:00</div>
+                    <div class="tl">duration</div>
+                </div>
+                <div class="tr-stat">
+                    <div class="tv" id="trEvt" style="color:var(--orange)">0</div>
+                    <div class="tl">events</div>
+                </div>
+                <div class="tr-stat">
+                    <div class="tv" id="trNet">₹0</div>
+                    <div class="tl">net reward</div>
+                </div>
+            </div>
+            <div class="tr-badges">
+                <h4>🎖️ Newly Earned Badges</h4>
+                <div class="tr-badge-row" id="trBadgeRow">
+                    <span style="font-size:0.72rem;color:var(--muted)">Drive safely to earn badges!</span>
+                </div>
+            </div>
+            <button class="tr-close-btn" onclick="closeTripResult()">Continue Driving →</button>
+        </div>
+    </div>
+
+    <!-- NEW BADGE TOAST -->
+    <div class="new-badge-toast" id="nbtToast">
+        <div class="nbt-shield" id="nbtShield"></div>
+        <div class="nbt-info">
+            <div class="nbt-lbl">🎉 Badge Unlocked!</div>
+            <div class="nbt-name" id="nbtName"></div>
+            <div class="nbt-desc" id="nbtDesc"></div>
+        </div>
+    </div>
+
+    <!-- COUPON SHEET -->
+    <div class="cpn-overlay" id="cpnOverlay" onclick="if(event.target===this)closeCoupons()">
+        <div class="cpn-sheet">
+            <div class="cpn-top">
+                <div class="cpn-top-title">🎟️ MY COUPONS</div>
+                <div class="cpn-close-btn" onclick="closeCoupons()">✕</div>
+            </div>
+            <div class="cpn-tabs">
+                <button class="cpn-tab active" onclick="setCpnFilter('all',this)">All</button>
+                <button class="cpn-tab" onclick="setCpnFilter('available',this)">Available</button>
+                <button class="cpn-tab" onclick="setCpnFilter('used',this)">Used</button>
+                <button class="cpn-tab" onclick="setCpnFilter('expired',this)">Expired</button>
+            </div>
+            <div class="cpn-list" id="cpnList">
+                <div class="cpn-empty">🎟️ No coupons yet.<br>Complete trips & earn badges to unlock coupons!</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COUPON TOAST -->
+    <div class="cpn-toast" id="cpnToast">
+        <div class="ct-icon">🎟️</div>
+        <div>
+            <div class="ct-txt" id="cpnToastTxt">Coupon Unlocked!</div>
+            <div class="ct-sub" id="cpnToastSub"></div>
+        </div>
+    </div>
+</body>
+
+</html>

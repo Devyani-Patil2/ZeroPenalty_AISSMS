@@ -1,24 +1,60 @@
 import '../models/zone.dart';
 
-/// Pre-defined risk zones near Pune / AISSMS area
-/// Each zone is a polygon defined by lat/lng coordinates
+/// Pre-defined zones near Pune / AISSMS area
+/// Each zone is a polygon defined by lat/lng coordinates.
 class MockZones {
   static final List<Zone> zones = [
-    // HIGH RISK — AISSMS College Area (School Zone)
+    // School Zone (AISSMS area)
     Zone(
-      name: 'AISSMS College Zone',
+      name: 'School Zone',
       risk: ZoneRisk.high,
-      speedLimit: 25,
+      speedLimit: 20,
       polygon: [
-        [18.5195, 73.8553],
-        [18.5215, 73.8553],
-        [18.5215, 73.8580],
-        [18.5195, 73.8580],
+        [18.5155, 73.8555],
+        [18.5180, 73.8555],
+        [18.5180, 73.8580],
+        [18.5155, 73.8580],
       ],
     ),
-    // HIGH RISK — Pune Station Area
+    // Market Zone (Laxmi Road area)
     Zone(
-      name: 'Pune Station Area',
+      name: 'Market Zone',
+      risk: ZoneRisk.high,
+      speedLimit: 20,
+      polygon: [
+        [18.5175, 73.8560],
+        [18.5195, 73.8560],
+        [18.5195, 73.8590],
+        [18.5175, 73.8590],
+      ],
+    ),
+    // Hospital Zone (Shaniwar Wada area)
+    Zone(
+      name: 'Hospital Zone',
+      risk: ZoneRisk.medium,
+      speedLimit: 25,
+      polygon: [
+        [18.5195, 73.8525],
+        [18.5215, 73.8525],
+        [18.5215, 73.8550],
+        [18.5195, 73.8550],
+      ],
+    ),
+    // School Zone (Bajirao Road area)
+    Zone(
+      name: 'School Zone',
+      risk: ZoneRisk.high,
+      speedLimit: 30,
+      polygon: [
+        [18.5140, 73.8560],
+        [18.5165, 73.8560],
+        [18.5165, 73.8580],
+        [18.5140, 73.8580],
+      ],
+    ),
+    // Market Zone (Pune Station area)
+    Zone(
+      name: 'Market Zone',
       risk: ZoneRisk.high,
       speedLimit: 25,
       polygon: [
@@ -28,9 +64,9 @@ class MockZones {
         [18.5280, 73.8790],
       ],
     ),
-    // HIGH RISK — Swargate Hospital Zone
+    // Hospital Zone (Swargate area)
     Zone(
-      name: 'Swargate Hospital Zone',
+      name: 'Hospital Zone',
       risk: ZoneRisk.high,
       speedLimit: 25,
       polygon: [
@@ -40,9 +76,9 @@ class MockZones {
         [18.5010, 73.8670],
       ],
     ),
-    // MEDIUM RISK — Deccan Residential
+    // Residential Area (Deccan area)
     Zone(
-      name: 'Deccan Residential',
+      name: 'Residential Area',
       risk: ZoneRisk.medium,
       speedLimit: 40,
       polygon: [
@@ -52,33 +88,21 @@ class MockZones {
         [18.5100, 73.8450],
       ],
     ),
-    // MEDIUM RISK — Kothrud Residential
+    // Residential Area (Kasba Peth area)
     Zone(
-      name: 'Kothrud Residential',
+      name: 'Residential Area',
       risk: ZoneRisk.medium,
-      speedLimit: 40,
+      speedLimit: 30,
       polygon: [
-        [18.5050, 73.8050],
-        [18.5150, 73.8050],
-        [18.5150, 73.8200],
-        [18.5050, 73.8200],
+        [18.5145, 73.8540],
+        [18.5160, 73.8540],
+        [18.5160, 73.8560],
+        [18.5145, 73.8560],
       ],
     ),
-    // MEDIUM RISK — Shivajinagar
+    // Highway
     Zone(
-      name: 'Shivajinagar Residential',
-      risk: ZoneRisk.medium,
-      speedLimit: 40,
-      polygon: [
-        [18.5280, 73.8400],
-        [18.5380, 73.8400],
-        [18.5380, 73.8500],
-        [18.5280, 73.8500],
-      ],
-    ),
-    // LOW RISK — Mumbai-Pune Expressway
-    Zone(
-      name: 'Mumbai-Pune Expressway',
+      name: 'Highway',
       risk: ZoneRisk.low,
       speedLimit: 80,
       polygon: [

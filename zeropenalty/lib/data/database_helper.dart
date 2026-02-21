@@ -42,9 +42,26 @@ class DatabaseHelper {
             feedback TEXT
           )
         ''');
+
+        await db.execute('''
+          CREATE TABLE coupons (
+            id TEXT PRIMARY KEY,
+            code TEXT,
+            title TEXT,
+            offer TEXT,
+            location TEXT,
+            unlocked_at TEXT,
+            expires_at TEXT,
+            status TEXT,
+            badge_id TEXT,
+            emoji TEXT
+          )
+        ''');
       },
     );
   }
+
+  // --- Trips ---
 
   /// Insert a trip
   static Future<int> insertTrip(Trip trip) async {
@@ -86,7 +103,8 @@ class DatabaseHelper {
   }
 
   /// Update trip with ML data
-  static Future<void> updateTripML(int id, double mlScore, List<String> feedback) async {
+  static Future<void> updateTripML(
+      int id, double mlScore, List<String> feedback) async {
     final db = await database;
     await db.update(
       'trips',
@@ -124,5 +142,27 @@ class DatabaseHelper {
       [driverId],
     );
     return (result.first['total'] as num?)?.toInt() ?? 0;
+  }
+
+  // --- Coupons ---
+
+  static Future<int> insertCoupon(Map<String, dynamic> couponMap) async {
+    final db = await database;
+    return db.insert('coupons', couponMap);
+  }
+
+  static Future<List<Map<String, dynamic>>> getCoupons() async {
+    final db = await database;
+    return db.query('coupons', orderBy: 'unlocked_at DESC');
+  }
+
+  static Future<void> updateCouponStatus(String id, String status) async {
+    final db = await database;
+    await db.update(
+      'coupons',
+      {'status': status},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 }

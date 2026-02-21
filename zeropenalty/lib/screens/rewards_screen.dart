@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
 import '../utils/constants.dart';
+import 'achievements_screen.dart';
+import 'coupons_screen.dart';
+
+import '../models/coupon.dart';
 
 class RewardsScreen extends StatelessWidget {
   const RewardsScreen({super.key});
@@ -11,150 +15,122 @@ class RewardsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: context.bg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Consumer<ProfileProvider>(
-            builder: (context, profile, _) {
-              final p = profile.profile;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Rewards',
-                    style: TextStyle(
-                      color: context.textPrimary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+        child: Consumer<ProfileProvider>(
+          builder: (context, provider, child) {
+            final profile = provider.profile;
+            final availableCoupons = provider.coupons
+                .where((c) => c.status == CouponStatus.available)
+                .length;
+
+            return CustomScrollView(
+              slivers: [
+                _buildAppBar(context, profile),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildPointsCard(context, profile),
+                        const SizedBox(height: 25),
+                        _buildNavGrid(context, profile, availableCoupons),
+                        const SizedBox(height: 25),
+                        _buildTierBenefits(context, profile.tier),
+                        const SizedBox(height: 100), // Spacing for bottom nav
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  _buildTierCard(context, p.tier, p.lifetimeAvgScore),
-                  const SizedBox(height: 20),
-                  _buildPointsCard(context, p.totalPoints),
-                  const SizedBox(height: 24),
-                  _buildRedemptionSection(context),
-                ],
-              );
-            },
-          ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildTierCard(BuildContext context, String tier, double avgScore) {
-    Color tierColor;
-    IconData tierIcon;
-    String tierDesc;
-    double nextThreshold;
+  Widget _buildAppBar(BuildContext context, dynamic profile) {
+    return SliverAppBar(
+      expandedHeight: 120,
+      backgroundColor: Colors.transparent,
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        title: Text(
+          'Driving Rewards',
+          style: TextStyle(
+            color: context.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+          ),
+        ),
+        centerTitle: false,
+      ),
+    );
+  }
 
-    switch (tier) {
-      case 'Safe Driver':
-        tierColor = AppColors.safe;
-        tierIcon = Icons.verified;
-        tierDesc = 'You are a safe driver! Keep up the excellent work.';
-        nextThreshold = 100;
-        break;
-      case 'Improving':
-        tierColor = AppColors.warning;
-        tierIcon = Icons.trending_up;
-        tierDesc =
-            'You\'re getting better! Score avg 80+ to become a Safe Driver.';
-        nextThreshold = 80;
-        break;
-      default:
-        tierColor = AppColors.danger;
-        tierIcon = Icons.warning;
-        tierDesc = 'Focus on safe driving to improve your tier.';
-        nextThreshold = 50;
-    }
-
-    final progress = (avgScore / nextThreshold).clamp(0.0, 1.0);
-
+  Widget _buildPointsCard(BuildContext context, dynamic profile) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [tierColor.withOpacity(0.15), context.cardBg],
+          colors: [AppColors.primary, AppColors.primary.withOpacity(0.7)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: tierColor.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(tierIcon, color: tierColor, size: 48),
-          const SizedBox(height: 12),
-          Text(
-            tier,
-            style: TextStyle(
-              color: tierColor,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            tierDesc,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: context.textSecondary, fontSize: 13),
-          ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: context.borderColor,
-              valueColor: AlwaysStoppedAnimation(tierColor),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Avg: ${avgScore.toStringAsFixed(0)} / ${nextThreshold.toStringAsFixed(0)}',
-            style: TextStyle(color: context.textMuted, fontSize: 12),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildPointsCard(BuildContext context, int points) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: context.cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.borderColor),
-      ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.warningLight.withOpacity(0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.stars,
-                color: AppColors.warningLight, size: 28),
-          ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Total Points',
-                style: TextStyle(color: context.textMuted, fontSize: 13),
+              const Text('Balance',
+                  style: TextStyle(color: Colors.white70, fontSize: 16)),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(20)),
+                child: Text(profile.tier.toUpperCase(),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
               ),
-              Text(
-                '$points',
-                style: const TextStyle(
-                  color: AppColors.warningLight,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text('${profile.totalPoints}',
+                  style: const TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white)),
+              const SizedBox(width: 8),
+              const Text('ZP Points',
+                  style: TextStyle(fontSize: 16, color: Colors.white70)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(Icons.info_outline, size: 14, color: Colors.white70),
+              const SizedBox(width: 6),
+              const Text('1000 points = ₹10 fuel credit',
+                  style: TextStyle(fontSize: 12, color: Colors.white70)),
             ],
           ),
         ],
@@ -162,90 +138,130 @@ class RewardsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRedemptionSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildNavGrid(BuildContext context, dynamic profile, int couponCount) {
+    return Row(
       children: [
-        Text(
-          'Redeem Rewards',
-          style: TextStyle(
-            color: context.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+        Expanded(
+          child: _navCard(
+            context,
+            'Achievements',
+            '${profile.unlockedBadgeIds.length} Unlocked',
+            Icons.emoji_events,
+            Colors.orange,
+            const AchievementsScreen(),
           ),
         ),
-        const SizedBox(height: 12),
-        _rewardCard(context, 'Fuel Voucher', '₹100 fuel discount', '500 pts',
-            Icons.local_gas_station, AppColors.accent),
-        const SizedBox(height: 10),
-        _rewardCard(context, 'Insurance Discount', '5% off next premium',
-            '1000 pts', Icons.security, AppColors.safe),
-        const SizedBox(height: 10),
-        _rewardCard(context, 'Service Coupon', 'Free vehicle health check',
-            '750 pts', Icons.build, AppColors.primaryLight),
-        const SizedBox(height: 10),
-        _rewardCard(context, 'Parking Pass', '1 hour free parking', '300 pts',
-            Icons.local_parking, AppColors.warningLight),
+        const SizedBox(width: 15),
+        Expanded(
+          child: _navCard(
+            context,
+            'My Coupons',
+            couponCount > 0 ? '$couponCount Available' : 'No rewards yet',
+            Icons.local_activity,
+            Colors.blue,
+            const CouponsScreen(),
+            badgeCount: couponCount,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _rewardCard(BuildContext context, String title, String desc,
-      String cost, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.surfaceBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.borderColor.withOpacity(0.5)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _navCard(BuildContext context, String title, String sub, IconData icon,
+      Color color, Widget screen,
+      {int badgeCount = 0}) {
+    return GestureDetector(
+      onTap: () =>
+          Navigator.push(context, MaterialPageRoute(builder: (c) => screen)),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: context.cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: context.borderColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: context.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                Icon(icon, color: color, size: 32),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: -5,
+                    right: -5,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                          color: AppColors.danger, shape: BoxShape.circle),
+                      child: Text('$badgeCount',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold)),
+                    ),
                   ),
-                ),
-                Text(
-                  desc,
-                  style: TextStyle(color: context.textMuted, fontSize: 12),
-                ),
               ],
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              cost,
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+            const SizedBox(height: 15),
+            Text(title,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(sub,
+                style: TextStyle(fontSize: 12, color: context.textSecondary)),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildTierBenefits(BuildContext context, String tier) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Tier Benefits',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 15),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: context.cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: context.borderColor),
+          ),
+          child: Column(
+            children: [
+              _benefitRow(context, 'Fuel Points Multiplier', '1.2x', true),
+              const Divider(height: 30),
+              _benefitRow(context, 'Monthly Challenge Entry', 'Unlocked', true),
+              const Divider(height: 30),
+              _benefitRow(context, 'Service Center Discounts', '5% OFF',
+                  tier != 'Improving'),
+              const Divider(height: 30),
+              _benefitRow(
+                  context, 'Priority Support', 'Platinum Only', tier == 'Pro'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _benefitRow(
+      BuildContext context, String label, String val, bool isUnlocked) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: TextStyle(
+                color: isUnlocked ? context.textPrimary : context.textMuted)),
+        Text(val,
+            style: TextStyle(
+                color: isUnlocked ? AppColors.primary : context.textMuted,
+                fontWeight: FontWeight.bold)),
+      ],
     );
   }
 }

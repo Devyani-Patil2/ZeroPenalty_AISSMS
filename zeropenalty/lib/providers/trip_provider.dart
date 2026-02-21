@@ -8,10 +8,12 @@ import '../engine/zone_manager.dart';
 import '../engine/alert_manager.dart';
 import '../engine/scoring_engine.dart';
 import '../engine/feedback_engine.dart';
+import '../engine/osm_risk_service.dart';
 import '../models/trip.dart';
 import '../models/zone.dart';
 import '../data/database_helper.dart';
 import '../services/api_service.dart';
+import '../services/ml_api_service.dart';
 import '../utils/constants.dart';
 
 /// Manages active trip state
@@ -21,7 +23,14 @@ class TripProvider extends ChangeNotifier {
   final EventDetector _eventDetector = EventDetector();
   final ZoneManager _zoneManager = ZoneManager();
   final AlertManager _alertManager = AlertManager();
+  final OsmRiskService _osmRiskService = OsmRiskService();
+  final MlApiService _mlApiService = MlApiService();
   FlutterTts? _tts;
+
+  // OSM dynamic zone tracking
+  OsmRiskResult? _osmRiskResult;
+  String _lastAnnouncedZone = '';
+  MlTripAnalysis? _mlAnalysis;
 
   // Demo / Live mode
   bool _isDemoMode = AppConstants.useSimulation;
@@ -66,8 +75,18 @@ class TripProvider extends ChangeNotifier {
   List<String> get recentAlerts => List.unmodifiable(_recentAlerts);
   List<LatLng> get pathPoints => List.unmodifiable(_pathPoints);
   Trip? get lastCompletedTrip => _lastCompletedTrip;
-  double get currentSpeedLimit => _currentZone?.speedLimit ?? 60;
+  OsmRiskResult? get osmRiskResult => _osmRiskResult;
+  MlTripAnalysis? get mlAnalysis => _mlAnalysis;
+  double get currentSpeedLimit {
+    // Prefer OSM dynamic speed limit if available
+    if (_osmRiskResult != null) return _osmRiskResult!.speedLimit.toDouble();
+    return _currentZone?.speedLimit ?? 60;
+  }
+
   bool get isOverspeeding => _currentSpeed > currentSpeedLimit;
+  String get dynamicZoneName =>
+      _osmRiskResult?.zoneName ?? _currentZone?.name ?? 'Open Road';
+  String get dynamicRiskLevel => _osmRiskResult?.riskLevel ?? 'LOW';
 
   double get liveScore {
     if (_events.isEmpty) return 100;
@@ -154,10 +173,30 @@ class TripProvider extends ChangeNotifier {
     _speedReadings++;
     _latitude = data.latitude;
     _longitude = data.longitude;
-    _pathPoints.add(LatLng(data.latitude, data.longitude));
 
-    // Update zone
+    // Filter GPS points to avoid big jumps (especially at trip start)
+    final newPoint = LatLng(data.latitude, data.longitude);
+    if (_pathPoints.isEmpty) {
+      // Only add the first point if we have a real GPS fix (not 0,0)
+      if (data.latitude.abs() > 0.1 && data.longitude.abs() > 0.1) {
+        _pathPoints.add(newPoint);
+      }
+    } else {
+      // Skip points that jump more than 500m from the last point (GPS glitch)
+      final lastPt = _pathPoints.last;
+      final dx = (data.latitude - lastPt.latitude).abs();
+      final dy = (data.longitude - lastPt.longitude).abs();
+      // ~0.005 degrees ≈ 500m
+      if (dx < 0.005 && dy < 0.005) {
+        _pathPoints.add(newPoint);
+      }
+    }
+
+    // Update zone (polygon-based fallback)
     _currentZone = _zoneManager.getCurrentZone(data.latitude, data.longitude);
+
+    // OSM dynamic risk detection (async, non-blocking)
+    _updateOsmRisk(data.latitude, data.longitude);
 
     // Estimate distance
     _distanceKm += data.speed / 3600; // km/h to km/s * 1s
@@ -170,6 +209,71 @@ class TripProvider extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  /// Fetch OSM risk data for current location (non-blocking).
+  /// Triggers one-time zone-entry voice alert when zone changes.
+  Future<void> _updateOsmRisk(double lat, double lng) async {
+    try {
+      final result = await _osmRiskService.detectRisk(lat, lng);
+      _osmRiskResult = result;
+
+      // Map static zones or OSM result to a generic category for the announcement
+      String category = result.categoryLabel;
+
+      // If we are in a static zone, provide a smart category based on the zone name
+      if (_currentZone != null && _currentZone!.name != 'Open Road') {
+        final name = _currentZone!.name.toLowerCase();
+        if (name.contains('school') ||
+            name.contains('college') ||
+            name.contains('univ') ||
+            name.contains('aissms')) {
+          category = 'School Zone';
+        } else if (name.contains('hosp') ||
+            name.contains('clinic') ||
+            name.contains('medic')) {
+          category = 'Hospital Zone';
+        } else if (name.contains('mark') ||
+            name.contains('peth') ||
+            name.contains('stat')) {
+          category = 'Market Zone';
+        } else if (name.contains('resid') || name.contains('housing')) {
+          category = 'Residential Area';
+        } else if (name.contains('highw') || name.contains('expres')) {
+          category = 'Highway';
+        } else {
+          category = 'Urban Area';
+        }
+      }
+
+      // One-time zone-entry alert — only speak when CATEGORY changes
+      if (category != _lastAnnouncedZone && category.isNotEmpty) {
+        _lastAnnouncedZone = category;
+
+        // Skip generic "Urban Road" or "Open Road"
+        final isGeneric = category == 'Urban Road' ||
+            category == 'Open Road' ||
+            category == 'Secondary Road';
+
+        if (!isGeneric) {
+          final speedLimit = currentSpeedLimit.toInt();
+          final announce =
+              'Entering $category. Speed limit $speedLimit kilometers per hour.';
+
+          _recentAlerts.insert(0, ' $category (Speed Limit: $speedLimit)');
+          if (_recentAlerts.length > 3) _recentAlerts.removeLast();
+
+          final now = DateTime.now();
+          if (_alertManager.canSpeak(now)) {
+            _tts?.speak(announce);
+            _alertManager.recordVoiceAlert(now);
+          }
+        }
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[TripProvider] OSM risk update failed: $e');
+    }
   }
 
   /// Handle detected event
@@ -186,9 +290,14 @@ class TripProvider extends ChangeNotifier {
     _recentAlerts.insert(0, alertText);
     if (_recentAlerts.length > 3) _recentAlerts.removeLast();
 
-    // Voice prompt
-    final voiceText = _alertManager.getVoicePrompt(event.eventType, zone: zone);
-    _tts?.speak(voiceText);
+    // Voice prompt - with throttling
+    final now = DateTime.now();
+    if (_alertManager.canSpeak(now)) {
+      final voiceText =
+          _alertManager.getVoicePrompt(event.eventType, zone: zone);
+      _tts?.speak(voiceText);
+      _alertManager.recordVoiceAlert(now);
+    }
 
     // Vibration
     final severity = _alertManager.getSeverity(event.eventType, zone);
@@ -268,12 +377,52 @@ class TripProvider extends ChangeNotifier {
     return tripWithFeedback;
   }
 
-  /// Async sync to Python backend
+  /// Async sync to Python ML backend (FastAPI)
   Future<void> _syncToBackend(Trip trip) async {
+    try {
+      // Try new ML API service first
+      final mlResult = await _mlApiService.uploadTrip(
+        driverId: trip.driverId,
+        startTime: trip.startTime.toIso8601String(),
+        endTime: trip.endTime.toIso8601String(),
+        durationSeconds: trip.durationSeconds,
+        distanceKm: trip.distanceKm,
+        localScore: trip.localScore,
+        avgSpeed: trip.avgSpeed,
+        maxSpeed: trip.maxSpeed,
+        overspeedCount: trip.overspeedCount,
+        harshBrakeCount: trip.harshBrakeCount,
+        sharpTurnCount: trip.sharpTurnCount,
+        rashAccelCount: trip.rashAccelCount,
+        highRiskEvents: trip.highRiskEvents,
+        mediumRiskEvents: trip.mediumRiskEvents,
+        lowRiskEvents: trip.lowRiskEvents,
+      );
+
+      if (mlResult != null) {
+        _mlAnalysis = mlResult;
+        debugPrint('[TripProvider] ✅ ML analysis received: '
+            'cluster=${mlResult.driverCluster}, '
+            'risk=${mlResult.riskPrediction}, '
+            'ml_score=${mlResult.mlScore}');
+
+        // Update local trip with ML data
+        await DatabaseHelper.updateTripML(
+          trip.id ?? 0,
+          mlResult.mlScore,
+          mlResult.feedback,
+        );
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      debugPrint('[TripProvider] ML API failed: $e');
+    }
+
+    // Fallback to old API service
     try {
       final result = await ApiService.uploadTrip(trip.toJson());
       if (result != null && result['ml_score'] != null) {
-        // Update local trip with ML data
         await DatabaseHelper.updateTripML(
           trip.id ?? 0,
           (result['ml_score'] as num).toDouble(),
@@ -281,7 +430,7 @@ class TripProvider extends ChangeNotifier {
         );
       }
     } catch (e) {
-      print('Backend sync failed (offline mode): $e');
+      debugPrint('[TripProvider] Backend sync failed (offline mode): $e');
     }
   }
 }

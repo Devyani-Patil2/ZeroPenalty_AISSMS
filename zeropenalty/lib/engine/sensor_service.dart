@@ -213,12 +213,49 @@ class SensorService {
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  // DEMO / SIMULATION MODE
+  // DEMO / SIMULATION MODE — Waypoint-based Pune Route
   // ═══════════════════════════════════════════════════════════════════
+
+  // Waypoints following real Pune roads near AISSMS / Shaniwar Wada area.
+  // Each waypoint: [lat, lng, targetSpeed, description]
+  static const List<List<dynamic>> _demoWaypoints = [
+    // ── Start near AISSMS College ──
+    [18.5165, 73.8565, 15.0, 'Start near AISSMS College'],
+    [18.5172, 73.8558, 25.0, 'Exiting college zone'],
+    [18.5180, 73.8552, 35.0, 'Heading north on Tilak Road'],
+    // ── Approaching Shaniwar Wada ──
+    [18.5190, 73.8545, 40.0, 'Tilak Road — picking up speed'],
+    [18.5198, 73.8540, 30.0, 'Approaching Shaniwar Wada area'],
+    [18.5205, 73.8535, 20.0, 'Near Shaniwar Wada — tourist zone'],
+    // ── Turn towards Laxmi Road ──
+    [18.5200, 73.8548, 25.0, 'Turning east towards Laxmi Road'],
+    [18.5195, 73.8560, 30.0, 'Heading to Laxmi Road Market'],
+    [18.5185, 73.8570, 15.0, 'Entering Laxmi Road Market zone'],
+    [18.5178, 73.8578, 20.0, 'In Laxmi Road — heavy traffic'],
+    // ── South on Bajirao Road ──
+    [18.5170, 73.8575, 35.0, 'Exiting market — Bajirao Road'],
+    [18.5160, 73.8572, 45.0, 'Bajirao Road — speeding up'],
+    [18.5150, 73.8570, 55.0, 'Bajirao Road — OVERSPEED segment'],
+    [18.5145, 73.8568, 60.0, 'Still overspeeding on Bajirao!'],
+    // ── Turn back towards AISSMS ──
+    [18.5148, 73.8558, 25.0, 'Harsh brake — slowing down'],
+    [18.5152, 73.8550, 30.0, 'Residential area — Kasba Peth'],
+    [18.5158, 73.8555, 25.0, 'Near school — slowing down'],
+    [18.5162, 73.8562, 20.0, 'Back near AISSMS — loop complete'],
+  ];
+
+  int _waypointIndex = 0;
+  double _waypointProgress = 0; // 0.0 to 1.0 between two waypoints
 
   void _startSimulation() {
     _simStep = 0;
     _simSpeed = 0;
+    _waypointIndex = 0;
+    _waypointProgress = 0;
+
+    // Start at the first waypoint
+    _simLat = (_demoWaypoints[0][0] as num).toDouble();
+    _simLng = (_demoWaypoints[0][1] as num).toDouble();
 
     _simTimer = Timer.periodic(
       Duration(milliseconds: AppConstants.sensorUpdateMs),
@@ -233,48 +270,57 @@ class SensorService {
   }
 
   SensorData _generateSimulatedData() {
-    final phase = (_simStep ~/ 15) % 6;
+    // Advance along the waypoint path
+    final currentWP = _demoWaypoints[_waypointIndex];
+    final nextIdx = (_waypointIndex + 1) % _demoWaypoints.length;
+    final nextWP = _demoWaypoints[nextIdx];
 
-    switch (phase) {
-      case 0:
-        _simSpeed = min(_simSpeed + 3 + _random.nextDouble() * 2, 45);
-        _simLat += 0.00005;
-        break;
-      case 1:
-        _simSpeed = 35 + _random.nextDouble() * 10;
-        _simLat += 0.00008;
-        _simLng += 0.00003;
-        break;
-      case 2:
-        _simSpeed = max(_simSpeed - 2, 20 + _random.nextDouble() * 15);
-        _simLat = 18.5200 + _random.nextDouble() * 0.001;
-        _simLng = 73.8560 + _random.nextDouble() * 0.001;
-        break;
-      case 3:
-        _simSpeed = 60 + _random.nextDouble() * 30;
-        _simLat += 0.0002;
-        _simLng -= 0.0001;
-        break;
-      case 4:
-        _simSpeed = max(_simSpeed - 15, 5);
-        break;
-      case 5:
-        _simSpeed = 30 + _random.nextDouble() * 20;
-        _simLat += 0.00006;
-        break;
+    final startLat = (currentWP[0] as num).toDouble();
+    final startLng = (currentWP[1] as num).toDouble();
+    final endLat = (nextWP[0] as num).toDouble();
+    final endLng = (nextWP[1] as num).toDouble();
+    final targetSpeed = (nextWP[2] as num).toDouble();
+
+    // Smoothly interpolate position between waypoints
+    _waypointProgress += 0.05 + _random.nextDouble() * 0.02; // ~5-7% per tick
+
+    if (_waypointProgress >= 1.0) {
+      // Arrived at next waypoint — advance
+      _waypointIndex = nextIdx;
+      _waypointProgress = 0;
     }
 
-    _simSpeed = max(0, _simSpeed + (_random.nextDouble() - 0.5) * 3);
+    // Lerp position
+    _simLat = startLat + (endLat - startLat) * _waypointProgress;
+    _simLng = startLng + (endLng - startLng) * _waypointProgress;
 
+    // Smoothly approach target speed
+    final speedDiff = targetSpeed - _simSpeed;
+    _simSpeed += speedDiff * 0.15 + (_random.nextDouble() - 0.5) * 2;
+    _simSpeed = max(0, _simSpeed);
+
+    // ── Scripted driving events (only after initial start-up) ──
     double accelY = 0;
     double gyroZ = 0;
 
-    if (_simStep % 20 == 0 && _random.nextDouble() > 0.5) {
-      accelY = -(AppConstants.harshBrakeThreshold + _random.nextDouble() * 3);
-    } else if (_simStep % 25 == 0 && _random.nextDouble() > 0.6) {
-      accelY = AppConstants.rashAccelThreshold + _random.nextDouble() * 2;
+    // Only trigger scripted events after first 10 seconds (allow smooth start)
+    if (_simStep > 10) {
+      // Harsh brake when decelerating sharply (e.g., entering market zone)
+      if (speedDiff < -15 && _random.nextDouble() > 0.3) {
+        accelY = -(AppConstants.harshBrakeThreshold + _random.nextDouble() * 3);
+      }
+      // Rash acceleration when speeding up a lot
+      else if (speedDiff > 15 && _random.nextDouble() > 0.4) {
+        accelY = AppConstants.rashAccelThreshold + _random.nextDouble() * 2;
+      }
+      // Random harsh brake every ~30 ticks
+      else if (_simStep % 30 == 0 && _random.nextDouble() > 0.6) {
+        accelY = -(AppConstants.harshBrakeThreshold + _random.nextDouble() * 2);
+      }
     }
-    if (_simStep % 18 == 0 && _random.nextDouble() > 0.5) {
+
+    // Sharp turns at waypoint transitions
+    if (_waypointProgress < 0.1 && _random.nextDouble() > 0.5) {
       gyroZ = (AppConstants.sharpTurnThreshold + _random.nextDouble() * 1.5) *
           (_random.nextBool() ? 1 : -1);
     }

@@ -12,6 +12,8 @@ import 'screens/live_trip_screen.dart';
 import 'screens/trip_summary_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/rewards_screen.dart';
+import 'screens/achievements_screen.dart';
+import 'screens/coupons_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -58,6 +60,11 @@ class ZeroPenaltyApp extends StatelessWidget {
             routes: {
               '/trip': (context) => const LiveTripScreen(),
               '/summary': (context) => const TripSummaryScreen(),
+              '/history': (context) => const HistoryScreen(),
+              '/rewards': (context) => const RewardsScreen(),
+              '/achievements': (context) => const AchievementsScreen(),
+              '/coupons': (context) => const CouponsScreen(),
+              '/profile': (context) => const ProfileScreen(),
             },
           );
         },

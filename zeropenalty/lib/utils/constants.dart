@@ -11,7 +11,10 @@ class AppConstants {
   static const double harshBrakeThreshold = 6.0; // m/s²
   static const double rashAccelThreshold = 5.0; // m/s²
   static const double sharpTurnThreshold = 2.5; // rad/s
-  static const int alertCooldownMs = 5000; // 5 seconds between alerts
+  static const int alertCooldownMs =
+      10000; // 10 seconds between same-type alerts
+  static const int voiceCooldownMs =
+      20000; // 20 seconds between ANY voice alert
 
   // Scoring
   static const double baseScore = 100.0;
