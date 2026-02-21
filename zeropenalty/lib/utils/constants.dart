@@ -35,32 +35,33 @@ class AppConstants {
   static const int sensorUpdateMs = 1000;
 }
 
-/// App color palette — brand / accent colors (theme-independent)
+/// App color palette — dark charcoal + green theme (matches map bg image)
 class AppColors {
-  // Dark-only fallback colors (used by screens that haven't migrated)
-  static const Color background = Color(0xFF0A0E27);
-  static const Color surface = Color(0xFF141832);
-  static const Color card = Color(0xFF1C2045);
-  static const Color cardBorder = Color(0xFF2A2F5A);
+  // Dark theme base colors (charcoal/slate tones from the map bg)
+  static const Color background = Color(0xFF1A1D1E);
+  static const Color surface = Color(0xFF222626);
+  static const Color card = Color(0xFF2A2E2F);
+  static const Color cardBorder = Color(0xFF3A3E3F);
 
-  // Green theme (splash / auth screens)
+  // Green theme (primary brand — matches green glowing dots in bg)
   static const Color primaryGreen = Color(0xFF4CAF50);
-  static const Color splashBg = Color(0xFF1A1A2E);
+  static const Color splashBg = Color(0xFF1A1D1E);
 
-  static const Color primary = Color(0xFF6C63FF);
-  static const Color primaryLight = Color(0xFF8B85FF);
-  static const Color accent = Color(0xFF00D9FF);
+  // Primary = green instead of purple
+  static const Color primary = Color(0xFF4CAF50);
+  static const Color primaryLight = Color(0xFF81C784);
+  static const Color accent = Color(0xFF66BB6A);
 
-  static const Color safe = Color(0xFF00E676);
-  static const Color safeLight = Color(0xFF69F0AE);
-  static const Color warning = Color(0xFFFFAB00);
+  static const Color safe = Color(0xFF66BB6A);
+  static const Color safeLight = Color(0xFFA5D6A7);
+  static const Color warning = Color(0xFFFFB74D);
   static const Color warningLight = Color(0xFFFFD54F);
-  static const Color danger = Color(0xFFFF5252);
+  static const Color danger = Color(0xFFEF5350);
   static const Color dangerLight = Color(0xFFFF8A80);
 
   static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFFB0B3D6);
-  static const Color textMuted = Color(0xFF6B6F99);
+  static const Color textSecondary = Color(0xFFB0B5B3);
+  static const Color textMuted = Color(0xFF6E7573);
 
   static Color scoreColor(double score) {
     if (score >= 80) return safe;
@@ -88,13 +89,13 @@ extension AppTheme on BuildContext {
 
   Color get bg => Theme.of(this).scaffoldBackgroundColor;
   Color get cardBg => isDark ? AppColors.card : Colors.white;
-  Color get surfaceBg => isDark ? AppColors.surface : const Color(0xFFF0F0F5);
+  Color get surfaceBg => isDark ? AppColors.surface : const Color(0xFFF2F5F3);
   Color get borderColor =>
-      isDark ? AppColors.cardBorder : const Color(0xFFE0E0E0);
+      isDark ? AppColors.cardBorder : const Color(0xFFDDE0DD);
 
-  Color get textPrimary => isDark ? Colors.white : const Color(0xFF1A1A2E);
+  Color get textPrimary => isDark ? Colors.white : const Color(0xFF1A1D1E);
   Color get textSecondary =>
-      isDark ? const Color(0xFFB0B3D6) : const Color(0xFF616161);
+      isDark ? const Color(0xFFB0B5B3) : const Color(0xFF5A5F5C);
   Color get textMuted =>
-      isDark ? const Color(0xFF6B6F99) : const Color(0xFF9E9E9E);
+      isDark ? const Color(0xFF6E7573) : const Color(0xFF9E9E9E);
 }

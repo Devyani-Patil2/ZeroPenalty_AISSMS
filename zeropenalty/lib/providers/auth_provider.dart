@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -52,6 +53,12 @@ class AuthProvider extends ChangeNotifier {
       await _authService.updateDisplayName(name);
     } catch (_) {}
 
+    // Save name to SharedPreferences so ProfileProvider can read it
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('driver_name', name);
+    } catch (_) {}
+
     _user = _authService.currentUser;
     _isLoading = false;
     notifyListeners();
@@ -81,6 +88,16 @@ class AuthProvider extends ChangeNotifier {
     }
 
     _user = _authService.currentUser;
+
+    // Sync Firebase display name to SharedPreferences for ProfileProvider
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final fbName = _user?.displayName;
+      if (fbName != null && fbName.isNotEmpty) {
+        await prefs.setString('driver_name', fbName);
+      }
+    } catch (_) {}
+
     _isLoading = false;
     notifyListeners();
     return true;

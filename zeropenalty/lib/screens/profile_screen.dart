@@ -4,6 +4,7 @@ import '../providers/profile_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
+import '../widgets/custom_header.dart';
 import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -44,6 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final p = profile.profile;
               return Column(
                 children: [
+                  const CustomHeader(title: 'My Profile'),
                   const SizedBox(height: 20),
                   // Avatar
                   Container(
@@ -164,10 +166,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                   const SizedBox(height: 30),
-
-                  // ── Theme Toggle ──
-                  _buildThemeToggle(),
-                  const SizedBox(height: 16),
 
                   // ── Sign Out Button ──
                   _buildSignOutButton(),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
 import '../utils/constants.dart';
+import '../widgets/custom_header.dart';
 
 class RewardsScreen extends StatelessWidget {
   const RewardsScreen({super.key});
@@ -19,14 +20,7 @@ class RewardsScreen extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Rewards',
-                    style: TextStyle(
-                      color: context.textPrimary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  const CustomHeader(title: 'Your Rewards'),
                   const SizedBox(height: 20),
                   _buildTierCard(context, p.tier, p.lifetimeAvgScore),
                   const SizedBox(height: 20),
@@ -232,13 +226,13 @@ class RewardsScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.15),
+              color: AppColors.primary.withOpacity(0.12),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               cost,
-              style: TextStyle(
-                color: AppColors.primaryLight,
+              style: const TextStyle(
+                color: AppColors.primary,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),

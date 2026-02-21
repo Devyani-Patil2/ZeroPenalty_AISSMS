@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
 import '../main.dart';
 import 'signup_screen.dart';
+import '../widgets/app_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,8 +46,16 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A2E),
-      body: SafeArea(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/splash_bg.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Form(
@@ -77,11 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.shield_rounded,
-                      size: 45,
-                      color: Colors.white,
-                    ),
+                    child: const AppLogo(size: 60),
                   ),
                 ),
                 const SizedBox(height: 28),
@@ -264,6 +269,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

@@ -13,13 +13,19 @@ import 'screens/trip_summary_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/rewards_screen.dart';
 import 'screens/profile_screen.dart';
-import 'screens/risk_zone_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp();
+    debugPrint('[main] ✅ Firebase initialized');
+  } catch (e) {
+    debugPrint(
+        '[main] ⚠️ Firebase init failed: $e — app will continue without auth');
+  }
   runApp(const ZeroPenaltyApp());
 }
 
@@ -46,7 +52,9 @@ class ZeroPenaltyApp extends StatelessWidget {
             darkTheme: themeProvider.darkTheme,
             themeMode:
                 themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-            home: const SplashScreen(),
+            home: context.watch<AuthProvider>().isLoggedIn
+                ? const SplashScreen()
+                : const WelcomeScreen(),
             routes: {
               '/trip': (context) => const LiveTripScreen(),
               '/summary': (context) => const TripSummaryScreen(),
@@ -72,7 +80,6 @@ class _MainNavigationState extends State<MainNavigation> {
   final _screens = const [
     DashboardScreen(),
     HistoryScreen(),
-    RiskZoneScreen(),
     RewardsScreen(),
     ProfileScreen(),
   ];
@@ -108,10 +115,6 @@ class _MainNavigationState extends State<MainNavigation> {
             BottomNavigationBarItem(
               icon: Icon(Icons.bar_chart_rounded),
               label: 'History',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.warning_amber_rounded),
-              label: 'Risk Zones',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.stars_rounded),

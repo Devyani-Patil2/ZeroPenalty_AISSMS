@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../providers/trip_provider.dart';
 import '../providers/history_provider.dart';
 import '../providers/profile_provider.dart';
+import '../providers/theme_provider.dart';
 import '../utils/constants.dart';
 import '../engine/scoring_engine.dart';
+import '../widgets/app_logo.dart';
+import '../widgets/custom_header.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -52,45 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildHeader() {
     return Consumer<ProfileProvider>(
       builder: (context, profile, _) {
-        return Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.accent],
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(Icons.shield, color: Colors.white, size: 28),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Hi, ${profile.profile.name}! 👋',
-                    style: TextStyle(
-                      color: context.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    profile.profile.tier,
-                    style: TextStyle(
-                      color: AppColors.scoreColor(
-                          profile.profile.lifetimeAvgScore),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
+        return CustomHeader(title: 'Hi, ${profile.profile.name}! 👋');
       },
     );
   }
@@ -98,50 +64,174 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildStartTripButton() {
     return Consumer<TripProvider>(
       builder: (context, trip, _) {
-        return GestureDetector(
-          onTap: () async {
-            await trip.startTrip();
-            if (context.mounted) {
-              Navigator.pushNamed(context, '/trip');
-            }
-          },
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primary, Color(0xFF4A42E8)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+        return Column(
+          children: [
+            // ── Demo / Live Mode Toggle ──
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: context.cardBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: context.borderColor),
               ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.4),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: const Column(
-              children: [
-                Icon(Icons.play_circle_fill, color: Colors.white, size: 48),
-                SizedBox(height: 8),
-                Text(
-                  'Start Trip',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color:
+                          trip.isDemoMode ? AppColors.warning : AppColors.safe,
+                    ),
                   ),
-                ),
-                Text(
-                  'Tap to begin driving session',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          trip.isDemoMode ? 'DEMO MODE' : 'LIVE MODE',
+                          style: TextStyle(
+                            color: trip.isDemoMode
+                                ? AppColors.warning
+                                : AppColors.safe,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                        Text(
+                          trip.isDemoMode
+                              ? '🎮 Simulated Data — for presentations'
+                              : '📡 Real GPS + Sensors — for actual driving',
+                          style: TextStyle(
+                            color: context.textMuted,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: !trip.isDemoMode,
+                    onChanged:
+                        trip.isActive ? null : (_) => trip.toggleDemoMode(),
+                    activeColor: AppColors.safe,
+                    inactiveThumbColor: AppColors.warning,
+                  ),
+                ],
+              ),
             ),
-          ),
+            // ── Start Trip Button ──
+            GestureDetector(
+              onTap: () async {
+                final started = await trip.startTrip();
+                if (!context.mounted) return;
+                if (started) {
+                  Navigator.pushNamed(context, '/trip');
+                } else if (trip.locationError != null) {
+                  // Show location error dialog
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: AppColors.card,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      title: const Row(
+                        children: [
+                          Icon(Icons.location_off,
+                              color: AppColors.danger, size: 28),
+                          SizedBox(width: 10),
+                          Text(
+                            'Location Required',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      content: Text(
+                        trip.locationError!,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            trip.clearLocationError();
+                          },
+                          child: const Text('OK'),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            trip.clearLocationError();
+                            await Geolocator.openLocationSettings();
+                          },
+                          icon: const Icon(Icons.settings, size: 16),
+                          label: const Text('Open Settings'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.primary, Color(0xFF388E3C)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.play_circle_fill,
+                        color: Colors.white, size: 48),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Start Trip',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      trip.isDemoMode
+                          ? 'Tap to begin demo session'
+                          : 'Tap to begin driving session',
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         );
       },
     );

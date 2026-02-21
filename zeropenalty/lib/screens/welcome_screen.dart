@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import '../widgets/app_logo.dart';
 import 'splash_screen.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
@@ -10,8 +11,16 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A2E),
-      body: SafeArea(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/splash_bg.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
@@ -33,10 +42,7 @@ class WelcomeScreen extends StatelessWidget {
                   ],
                 ),
                 child: Center(
-                  child: CustomPaint(
-                    size: const Size(85, 95),
-                    painter: ShieldLogoPainter(),
-                  ),
+                  child: const AppLogo(size: 95),
                 ),
               ),
               const SizedBox(height: 28),
@@ -119,6 +125,7 @@ class WelcomeScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

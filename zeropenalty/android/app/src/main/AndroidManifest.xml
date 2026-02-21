@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- GPS Location — required for LIVE sensor mode -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Optional: keep GPS alive when app is in background during a trip -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Vibration for alerts -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <application
         android:label="zeropenalty"
         android:name="${applicationName}"
