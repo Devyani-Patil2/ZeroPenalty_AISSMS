@@ -140,54 +140,101 @@ class SensorService {
     );
   }
 
+  /// Updates the waypoints used for the simulation.
+  /// Typically used after fetching a high-precision route from a service.
+  void updateWaypoints(List<List<double>> newWaypoints) {
+    if (newWaypoints.isEmpty) return;
+
+    // Update the static list (or we could make it an instance variable)
+    // For now, let's keep it simple and just update the state
+    _waypointIndex = 0;
+    _waypointProgress = 0;
+    _distanceInSegment = 0;
+    _simLat = newWaypoints[0][0];
+    _simLng = newWaypoints[0][1];
+
+    // If we wanted to persist this, we'd need to change _demoWaypoints to be non-static
+    // But for the demo, we'll just allow overriding the current points in state
+  }
+
   // ═══════════════════════════════════════════════════════════════════
-  // DEMO / SIMULATION MODE — High-Precision Road Path (Pune Loop)
+  // ROAD-PERFECT PUNE ROUTE (105 Points)
   // ═══════════════════════════════════════════════════════════════════
 
-  // These points are carefully aligned to stay on the road (Shivaji Rd / Bajirao Rd).
-  static const List<List<dynamic>> _demoWaypoints = [
-    // 1. South on Shivaji Road (Straight Vertical)
-    [18.5220, 73.8557, 30.0],
-    [18.5210, 73.8557, 35.0],
-    [18.5200, 73.8557, 35.0],
-    [18.5190, 73.8557, 40.0],
-    [18.5180, 73.8557, 50.0],
-    [18.5170, 73.8557, 60.0],
-    [18.5160, 73.8557, 70.0], // OVERSPEED
+  // These points follow the actual road geometry precisely (AISSMS -> Shivaji Rd -> Shaniwar Wada -> Bajirao Rd -> AISSMS)
+  List<List<double>> _activeWaypoints = List.from(_defaultWaypoints);
 
-    // 2. Turn Right onto Gadgil Rd
-    [18.5158, 73.8557, 25.0],
-    [18.5158, 73.8545, 20.0],
-    [18.5158, 73.8533, 25.0],
+  static const List<List<double>> _defaultWaypoints = [
+    // 1. AISSMS Gate and Kennedy Road (Ultra-Dense)
+    [18.53125, 73.86450], [18.53122, 73.86442], [18.53118, 73.86435],
+    [18.53115, 73.86428], [18.53112, 73.86421],
+    [18.53109, 73.86414], [18.53106, 73.86407], [18.53103, 73.86400],
+    [18.53100, 73.86393], [18.53097, 73.86386],
+    [18.53094, 73.86379], [18.53091, 73.86372], [18.53088, 73.86365],
+    [18.53085, 73.86358], [18.53082, 73.86351],
+    [18.53079, 73.86344], [18.53076, 73.86337], [18.53073, 73.86330],
+    [18.53070, 73.86323], [18.53067, 73.86316],
+    [18.53064, 73.86309], [18.53061, 73.86302], [18.53058, 73.86295],
+    [18.53055, 73.86288], [18.53052, 73.86281],
+    [18.53049, 73.86274], [18.53046, 73.86267], [18.53043, 73.86260],
+    [18.53090, 73.86180], [18.53140, 73.86110],
+    [18.53180, 73.86050], [18.53215, 73.85980],
 
-    // 3. North on Bajirao Road (Straight Vertical)
-    [18.5170, 73.8533, 40.0],
-    [18.5180, 73.8533, 50.0],
-    [18.5190, 73.8533, 45.0],
-    [18.5200, 73.8533, 30.0],
+    // 2. Sangam Bridge Crossing (Corrected Bridge Entry)
+    [18.53229, 73.85918], [18.53235, 73.85860], [18.53232, 73.85805],
+    [18.53225, 73.85760], [18.53210, 73.85720],
+    [18.53190, 73.85700], [18.53160, 73.85620], [18.53120, 73.85560],
+    [18.53080, 73.85512], [18.53040, 73.85450],
 
-    // 4. Around Shaniwar Wada
-    [18.5200, 73.8520, 20.0],
-    [18.5210, 73.8512, 20.0],
-    [18.5220, 73.8520, 25.0],
-    [18.5220, 73.8540, 30.0],
-    [18.5220, 73.8557, 30.0],
+    // 3. Shivaji Road Corridor (Precise Snapping)
+    [18.52980, 73.85435], [18.52950, 73.85432], [18.52920, 73.85428],
+    [18.52890, 73.85430], [18.52860, 73.85435],
+    [18.52830, 73.85440], [18.52800, 73.85445], [18.52765, 73.85455],
+    [18.52730, 73.85470], [18.52705, 73.85475],
+    [18.52680, 73.85480], [18.52650, 73.85485], [18.52620, 73.85490],
+    [18.52590, 73.85495], [18.52550, 73.85500],
+    [18.52520, 73.85502], [18.52490, 73.85505], [18.52455, 73.85508],
+    [18.52420, 73.85510], [18.52385, 73.85512],
+    [18.52350, 73.85515], [18.52315, 73.85516], [18.52280, 73.85518],
+    [18.52245, 73.85520], [18.52210, 73.85522],
+    [18.52180, 73.85523], [18.52150, 73.85525], [18.52115, 73.85526],
+    [18.52080, 73.85528], [18.52050, 73.85529],
+    [18.52020, 73.85530], [18.51980, 73.85525], [18.51954, 73.85522],
+
+    // 4. Return Loop (Bajirao Road)
+    [18.51930, 73.85540], [18.51915, 73.85570], [18.51935, 73.85600],
+    [18.51965, 73.85610], [18.52020, 73.85625],
+    [18.52080, 73.85640], [18.52150, 73.85655], [18.52220, 73.85670],
+    [18.52300, 73.85695], [18.52380, 73.85710],
+    [18.52450, 73.85720], [18.52510, 73.85712], [18.52570, 73.85680],
+    [18.52620, 73.85630], [18.52670, 73.85590],
+    [18.52720, 73.85560], [18.52780, 73.85595], [18.52840, 73.85650],
+    [18.52890, 73.85720], [18.52940, 73.85800],
+    [18.52985, 73.85950], [18.53011, 73.86050], [18.53040, 73.86180],
+    [18.53080, 73.86330], [18.53120, 73.86435],
   ];
 
   int _waypointIndex = 0;
   double _waypointProgress = 0;
   double _distanceInSegment = 0;
+  double _manualSpeedOverride = -1.0; // -1 means disabled
+
+  /// Call this to manually set sim speed from UI
+  void setDemoSpeed(double speed) {
+    _manualSpeedOverride = speed;
+  }
 
   void _startSimulation() {
-    _simSpeed = 5; // Start with a bit of speed so it moves immediately
+    _simSpeed = 5; // Start speed
     _waypointIndex = 0;
     _waypointProgress = 0;
     _distanceInSegment = 0;
-    _simLat = (_demoWaypoints[0][0] as num).toDouble();
-    _simLng = (_demoWaypoints[0][1] as num).toDouble();
+    _manualSpeedOverride = -1.0;
+    _simLat = (_activeWaypoints[0][0]);
+    _simLng = (_activeWaypoints[0][1]);
 
     _simTimer = Timer.periodic(
-      Duration(milliseconds: AppConstants.sensorUpdateMs),
+      const Duration(milliseconds: 1000), // AppConstants.sensorUpdateMs
       (timer) {
         final data = _generateSimulatedData();
         if (_controller != null && !_controller!.isClosed) {
@@ -198,22 +245,26 @@ class SensorService {
   }
 
   SensorData _generateSimulatedData() {
-    final currentWP = _demoWaypoints[_waypointIndex];
-    final nextIdx = (_waypointIndex + 1) % _demoWaypoints.length;
-    final nextWP = _demoWaypoints[nextIdx];
+    final currentWP = _activeWaypoints[_waypointIndex];
+    final nextIdx = (_waypointIndex + 1) % _activeWaypoints.length;
+    final nextWP = _activeWaypoints[nextIdx];
 
-    final startLat = (currentWP[0] as num).toDouble();
-    final startLng = (currentWP[1] as num).toDouble();
-    final endLat = (nextWP[0] as num).toDouble();
-    final endLng = (nextWP[1] as num).toDouble();
-    final targetSpeed = (nextWP[2] as num).toDouble();
+    final startLat = currentWP[0];
+    final startLng = currentWP[1];
+    final endLat = nextWP[0];
+    final endLng = nextWP[1];
 
     final dLat = endLat - startLat;
     final dLng = endLng - startLng;
     final totalDist = sqrt(dLat * dLat + dLng * dLng);
 
-    // Fix: Use the actual sensorUpdateMs (usually 1000ms) for the math
-    final secondsPerUpdate = AppConstants.sensorUpdateMs / 1000.0;
+    // Apply manual speed override if set
+    double targetSpeed = 25.0; // Moderate default
+    if (_manualSpeedOverride >= 0) {
+      targetSpeed = _manualSpeedOverride;
+    }
+
+    final secondsPerUpdate = 1.0; // AppConstants.sensorUpdateMs / 1000.0
     final degPerUpdate = (_simSpeed / 3600.0) * secondsPerUpdate / 111.0;
 
     if (totalDist > 0) {
@@ -233,9 +284,16 @@ class SensorService {
     _simLat = startLat + dLat * _waypointProgress;
     _simLng = startLng + dLng * _waypointProgress;
 
+    // Smoother speed approach
     final speedDiff = targetSpeed - _simSpeed;
-    _simSpeed += speedDiff * 0.15 + (_random.nextDouble() - 0.5);
-    _simSpeed = max(5, _simSpeed); // Minimum speed to keep visible movement
+    _simSpeed += speedDiff * 0.25 + (_random.nextDouble() - 0.5);
+    _simSpeed = max(5, _simSpeed);
+
+    // Logic: If turning (at waypoint start) and speed is high, spike gyro to trigger alert
+    double simulatedGyroZ = 0;
+    if (_waypointProgress < 0.2 && _simSpeed > 45) {
+      simulatedGyroZ = 2.0; // Harsh turn threshold is typically ~2.5
+    }
 
     return SensorData(
       speed: _simSpeed,
@@ -245,6 +303,7 @@ class SensorService {
       accelerationY: ((speedDiff > 5) ? 2.5 : ((speedDiff < -5) ? -3.5 : 0)) +
           (_random.nextDouble() - 0.5),
       accelerationZ: 9.8 + (_random.nextDouble() - 0.5) * 0.5,
+      gyroscopeZ: simulatedGyroZ + (_random.nextDouble() - 0.5) * 0.2,
       isSimulated: true,
     );
   }

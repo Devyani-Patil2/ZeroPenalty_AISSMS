@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
 import '../engine/scoring_engine.dart';
+import '../providers/profile_provider.dart';
 import '../main.dart';
 
 class TripSummaryScreen extends StatelessWidget {
@@ -19,7 +20,8 @@ class TripSummaryScreen extends StatelessWidget {
             final t = trip.lastCompletedTrip;
             if (t == null) {
               return Center(
-                child: Text('No trip data', style: TextStyle(color: context.textMuted)),
+                child: Text('No trip data',
+                    style: TextStyle(color: context.textMuted)),
               );
             }
 
@@ -41,6 +43,8 @@ class TripSummaryScreen extends StatelessWidget {
                   _buildFeedback(context, t),
                   const SizedBox(height: 20),
                   _buildPointsEarned(t),
+                  const SizedBox(height: 20),
+                  _buildRewardUnlocked(context),
                   const SizedBox(height: 24),
                   _buildDoneButton(context),
                 ],
@@ -141,15 +145,19 @@ class TripSummaryScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _infoItem(context, 'Duration', t.formattedDuration, Icons.timer),
-          _infoItem(context, 'Distance', '${t.distanceKm.toStringAsFixed(1)} km', Icons.straighten),
-          _infoItem(context, 'Avg Speed', '${t.avgSpeed.toStringAsFixed(0)} km/h', Icons.speed),
-          _infoItem(context, 'Max Speed', '${t.maxSpeed.toStringAsFixed(0)} km/h', Icons.flash_on),
+          _infoItem(context, 'Distance',
+              '${t.distanceKm.toStringAsFixed(1)} km', Icons.straighten),
+          _infoItem(context, 'Avg Speed',
+              '${t.avgSpeed.toStringAsFixed(0)} km/h', Icons.speed),
+          _infoItem(context, 'Max Speed',
+              '${t.maxSpeed.toStringAsFixed(0)} km/h', Icons.flash_on),
         ],
       ),
     );
   }
 
-  Widget _infoItem(BuildContext context, String label, String value, IconData icon) {
+  Widget _infoItem(
+      BuildContext context, String label, String value, IconData icon) {
     return Column(
       children: [
         Icon(icon, color: AppColors.accent, size: 20),
@@ -169,10 +177,30 @@ class TripSummaryScreen extends StatelessWidget {
 
   Widget _buildEventBreakdown(BuildContext context, t) {
     final events = [
-      {'label': 'Overspeeding', 'count': t.overspeedCount, 'icon': Icons.speed, 'color': AppColors.danger},
-      {'label': 'Harsh Brakes', 'count': t.harshBrakeCount, 'icon': Icons.pan_tool, 'color': AppColors.warning},
-      {'label': 'Sharp Turns', 'count': t.sharpTurnCount, 'icon': Icons.turn_right, 'color': AppColors.warningLight},
-      {'label': 'Rash Accel', 'count': t.rashAccelCount, 'icon': Icons.rocket_launch, 'color': AppColors.primaryLight},
+      {
+        'label': 'Overspeeding',
+        'count': t.overspeedCount,
+        'icon': Icons.speed,
+        'color': AppColors.danger
+      },
+      {
+        'label': 'Harsh Brakes',
+        'count': t.harshBrakeCount,
+        'icon': Icons.pan_tool,
+        'color': AppColors.warning
+      },
+      {
+        'label': 'Sharp Turns',
+        'count': t.sharpTurnCount,
+        'icon': Icons.turn_right,
+        'color': AppColors.warningLight
+      },
+      {
+        'label': 'Rash Accel',
+        'count': t.rashAccelCount,
+        'icon': Icons.rocket_launch,
+        'color': AppColors.primaryLight
+      },
     ];
 
     return Container(
@@ -198,16 +226,19 @@ class TripSummaryScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   children: [
-                    Icon(e['icon'] as IconData, color: e['color'] as Color, size: 18),
+                    Icon(e['icon'] as IconData,
+                        color: e['color'] as Color, size: 18),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         e['label'] as String,
-                        style: TextStyle(color: context.textPrimary, fontSize: 14),
+                        style:
+                            TextStyle(color: context.textPrimary, fontSize: 14),
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: (e['color'] as Color).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(8),
@@ -230,8 +261,16 @@ class TripSummaryScreen extends StatelessWidget {
 
   Widget _buildZoneAnalysis(BuildContext context, t) {
     final zones = [
-      {'label': 'High Risk', 'count': t.highRiskEvents, 'color': AppColors.danger},
-      {'label': 'Medium Risk', 'count': t.mediumRiskEvents, 'color': AppColors.warning},
+      {
+        'label': 'High Risk',
+        'count': t.highRiskEvents,
+        'color': AppColors.danger
+      },
+      {
+        'label': 'Medium Risk',
+        'count': t.mediumRiskEvents,
+        'color': AppColors.warning
+      },
       {'label': 'Low Risk', 'count': t.lowRiskEvents, 'color': AppColors.safe},
     ];
 
@@ -263,7 +302,8 @@ class TripSummaryScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: (z['color'] as Color).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: (z['color'] as Color).withOpacity(0.3)),
+                          border: Border.all(
+                              color: (z['color'] as Color).withOpacity(0.3)),
                         ),
                         child: Column(
                           children: [
@@ -308,7 +348,8 @@ class TripSummaryScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.lightbulb, color: AppColors.warningLight, size: 18),
+              const Icon(Icons.lightbulb,
+                  color: AppColors.warningLight, size: 18),
               const SizedBox(width: 8),
               Text(
                 'Coaching Tips',
@@ -325,7 +366,8 @@ class TripSummaryScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   f,
-                  style: TextStyle(color: context.textPrimary, fontSize: 13, height: 1.4),
+                  style: TextStyle(
+                      color: context.textPrimary, fontSize: 13, height: 1.4),
                 ),
               )),
         ],
@@ -338,7 +380,10 @@ class TripSummaryScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary.withOpacity(0.2), AppColors.accent.withOpacity(0.1)],
+          colors: [
+            AppColors.primary.withOpacity(0.2),
+            AppColors.accent.withOpacity(0.1)
+          ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.primary.withOpacity(0.3)),
@@ -366,6 +411,8 @@ class TripSummaryScreen extends StatelessWidget {
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () {
+          // Reset last earned coupon when leaving
+          context.read<ProfileProvider>().loadProfile();
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const MainNavigation()),
@@ -376,9 +423,85 @@ class TripSummaryScreen extends StatelessWidget {
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
-        child: const Text('Back to Dashboard', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        child: const Text('Back to Dashboard',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  Widget _buildRewardUnlocked(BuildContext context) {
+    final lastCoupon = context.watch<ProfileProvider>().lastEarnedCoupon;
+    if (lastCoupon == null) return const SizedBox();
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary,
+            AppColors.primary.withOpacity(0.7),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.4),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              color: Colors.white24,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              lastCoupon.emoji,
+              style: const TextStyle(fontSize: 32),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'REWARD UNLOCKED!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                Text(
+                  lastCoupon.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  lastCoupon.offer,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

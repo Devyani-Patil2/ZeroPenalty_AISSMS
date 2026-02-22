@@ -10,13 +10,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages user profile and rewards state
 class ProfileProvider extends ChangeNotifier {
-  UserProfile _profile = UserProfile();
+  UserProfile _profile = UserProfile(name: 'Safe Driver');
   List<Coupon> _coupons = [];
-  bool _isLoading = false;
+  bool _isLoading = true;
+  Coupon? _lastEarnedCoupon;
 
   UserProfile get profile => _profile;
   List<Coupon> get coupons => _coupons;
   bool get isLoading => _isLoading;
+  Coupon? get lastEarnedCoupon => _lastEarnedCoupon;
 
   Future<void> loadProfile() async {
     _isLoading = true;
@@ -53,66 +55,39 @@ class ProfileProvider extends ChangeNotifier {
       unlockedBadgeIds: unlockedBadges,
     );
 
-    // Load coupons from DB
-    final couponMaps = await DatabaseHelper.getCoupons();
-    _coupons = couponMaps.map((m) => Coupon.fromMap(m)).toList();
+    // Load coupons from DB with error handling
+    try {
+      final couponMaps = await DatabaseHelper.getCoupons();
+      _coupons = couponMaps.map((m) => Coupon.fromMap(m)).toList();
 
-    // Seed demo coupons if none exist
-    if (_coupons.isEmpty) {
-      final demoCoupons = [
-        Coupon(
-          id: 'demo_fuel',
-          code: 'FUEL100',
-          title: 'Fuel Voucher',
-          offer: '₹100 off on fuel',
-          location: 'HP Petrol Pump, Swargate',
-          unlockedAt: DateTime.now(),
-          expiresAt: DateTime.now().add(const Duration(days: 30)),
-          status: CouponStatus.available,
-          badgeId: 'smooth_rider',
-          emoji: '⛽',
-        ),
-        Coupon(
-          id: 'demo_service',
-          code: 'SERV750',
-          title: 'Free Service',
-          offer: 'Free vehicle health check',
-          location: 'Mahindra Service Center, Pune',
-          unlockedAt: DateTime.now(),
-          expiresAt: DateTime.now().add(const Duration(days: 45)),
-          status: CouponStatus.available,
-          badgeId: 'zone_guardian',
-          emoji: '🔧',
-        ),
-        Coupon(
-          id: 'demo_parking',
-          code: 'PARK300',
-          title: 'Parking Pass',
-          offer: '1 hour free parking',
-          location: 'Phoenix Mall, Viman Nagar',
-          unlockedAt: DateTime.now(),
-          expiresAt: DateTime.now().add(const Duration(days: 15)),
-          status: CouponStatus.available,
-          badgeId: 'cruise_control',
-          emoji: '🅿️',
-        ),
-        Coupon(
-          id: 'demo_insurance',
-          code: 'INSUR5',
-          title: 'Insurance Discount',
-          offer: '5% off next premium',
-          location: 'ICICI Lombard, FC Road',
-          unlockedAt: DateTime.now().subtract(const Duration(days: 10)),
-          expiresAt: DateTime.now().add(const Duration(days: 60)),
-          status: CouponStatus.available,
-          badgeId: 'safe_driver',
-          emoji: '🛡️',
-        ),
-      ];
-      for (final c in demoCoupons) {
-        await DatabaseHelper.insertCoupon(c.toMap());
+      // Seed all rewards as LOCKED by default (roadmap style)
+      if (_coupons.isEmpty) {
+        final List<Coupon> allRewards = [
+          AchievementService.generateCoupon('welcome',
+              status: CouponStatus.available),
+          AchievementService.generateCoupon('silver_score',
+              status: CouponStatus.locked),
+          AchievementService.generateCoupon('gold_score',
+              status: CouponStatus.locked),
+          AchievementService.generateCoupon('smooth',
+              status: CouponStatus.locked),
+          AchievementService.generateCoupon('take_brake',
+              status: CouponStatus.locked),
+          AchievementService.generateCoupon('zone_grd',
+              status: CouponStatus.locked),
+          AchievementService.generateCoupon('no_spd',
+              status: CouponStatus.locked),
+          AchievementService.generateCoupon('cruise',
+              status: CouponStatus.locked),
+        ];
+        for (final c in allRewards) {
+          await DatabaseHelper.insertCoupon(c.toMap());
+        }
+        _coupons = allRewards;
       }
-      _coupons = demoCoupons;
+    } catch (e) {
+      debugPrint('Failed to load/seed coupons: $e');
+      _coupons = []; // Fallback to empty if DB fails
     }
 
     _isLoading = false;
@@ -141,17 +116,19 @@ class ProfileProvider extends ChangeNotifier {
     await DatabaseHelper.updateCouponStatus(id, CouponStatus.used.name);
     final idx = _coupons.indexWhere((c) => c.id == id);
     if (idx != -1) {
+      final old = _coupons[idx];
       _coupons[idx] = Coupon(
-        id: _coupons[idx].id,
-        code: _coupons[idx].code,
-        title: _coupons[idx].title,
-        offer: _coupons[idx].offer,
-        location: _coupons[idx].location,
-        unlockedAt: _coupons[idx].unlockedAt,
-        expiresAt: _coupons[idx].expiresAt,
+        id: old.id,
+        code: old.code,
+        title: old.title,
+        offer: old.offer,
+        description: old.description,
+        location: old.location,
+        unlockedAt: old.unlockedAt,
+        expiresAt: old.expiresAt,
         status: CouponStatus.used,
-        badgeId: _coupons[idx].badgeId,
-        emoji: _coupons[idx].emoji,
+        badgeId: old.badgeId,
+        emoji: old.emoji,
       );
       notifyListeners();
     }
@@ -165,22 +142,63 @@ class ProfileProvider extends ChangeNotifier {
     if (trip.harshBrakeCount == 0) p.cleanBrakeTrips++;
     if (trip.overspeedCount == 0) p.noSpeedTrips++;
     if (trip.localScore >= 80) p.hiScoreTrips++;
-    // Safe zones: count total zones minus those with overspeed
+
+    // safe zones: demo bonus
     if (trip.overspeedCount == 0) {
-      p.safeZonesCount += 2; // Demo bonus
+      p.safeZonesCount += 2;
+    }
+
+    // Dynamic Unlocking based on trip score
+    _lastEarnedCoupon = null;
+    final tripScore = trip.mlScore ?? trip.localScore;
+
+    if (tripScore >= 85) {
+      final silverIdx = _coupons.indexWhere((c) =>
+          c.badgeId == 'silver_score' && c.status == CouponStatus.locked);
+      if (silverIdx != -1) {
+        final unlocked =
+            _coupons[silverIdx].copyWith(status: CouponStatus.available);
+        _coupons[silverIdx] = unlocked;
+        await DatabaseHelper.insertCoupon(
+            unlocked.toMap()); // OVERWRITE/UPDATE logic needed
+        _lastEarnedCoupon = unlocked;
+      }
+    }
+
+    if (tripScore >= 95) {
+      final goldIdx = _coupons.indexWhere(
+          (c) => c.badgeId == 'gold_score' && c.status == CouponStatus.locked);
+      if (goldIdx != -1) {
+        final unlocked =
+            _coupons[goldIdx].copyWith(status: CouponStatus.available);
+        _coupons[goldIdx] = unlocked;
+        await DatabaseHelper.insertCoupon(unlocked.toMap());
+        _lastEarnedCoupon = unlocked;
+      }
     }
 
     // Check for new badges
-    final newlyUnlocked = <String>[];
     for (final badge in AchievementService.badges) {
       if (!p.unlockedBadgeIds.contains(badge.id)) {
         if (badge.checkUnlocked(trip) || badge.checkUnlocked(p)) {
-          newlyUnlocked.add(badge.id);
           p.unlockedBadgeIds.add(badge.id);
 
-          // Generate and save coupon
-          final coupon = AchievementService.generateCoupon(badge.id);
-          await addCoupon(coupon);
+          // Find the existing locked coupon for this badge and unlock it
+          final badgeIdx = _coupons.indexWhere(
+              (c) => c.badgeId == badge.id && c.status == CouponStatus.locked);
+          if (badgeIdx != -1) {
+            final unlocked =
+                _coupons[badgeIdx].copyWith(status: CouponStatus.available);
+            _coupons[badgeIdx] = unlocked;
+            await DatabaseHelper.insertCoupon(unlocked.toMap());
+            _lastEarnedCoupon = unlocked;
+          } else {
+            // Fallback if not seeded for some reason
+            final badgeCoupon = AchievementService.generateCoupon(badge.id,
+                status: CouponStatus.available);
+            await addCoupon(badgeCoupon);
+            _lastEarnedCoupon = badgeCoupon;
+          }
         }
       }
     }

@@ -124,51 +124,82 @@ class AchievementService {
     'smooth': {
       'title': '5% OFF FUEL',
       'offer': '5% discount on next fuel fill',
+      'description': 'Unlocked for zero hard braking events',
       'loc': 'Any HP/Indian Oil pump'
     },
     'take_brake': {
       'title': 'FREE BRAKE INSPECTION',
       'offer': 'Free brake check at authorized centers',
+      'description': 'Complete 15 trips with zero hard braking',
       'loc': 'Bajaj Auto Service'
     },
     'zone_grd': {
       'title': '2 HRS FREE PARKING',
       'offer': 'Free 2-hour parking at SmartPark',
+      'description': 'Pass 10 risk zones safely',
       'loc': 'PMRDA Parking Lots'
     },
     'no_spd': {
       'title': '₹50 OFF FUEL',
       'offer': '₹50 off on fuel above ₹500',
+      'description': 'Complete 5 trips with zero speeding',
       'loc': 'Any petrol pump'
     },
     'cruise': {
       'title': 'FREE TYRE CHECK',
       'offer': 'Free pressure & air check',
+      'description': 'Drive a total of 20 km safely',
       'loc': 'Authorized centers'
     },
     'opt_spd': {
       'title': '10% OFF SERVICE',
       'offer': '10% off next full vehicle service',
+      'description': 'Keep speed between 30–50 km/h for 80% trip',
       'loc': 'Partner garages'
     },
     'money': {
       'title': '₹100 OFF FUEL',
       'offer': '₹100 off on fuel above ₹1000',
+      'description': 'Earn 5000 total reward points',
       'loc': 'Any petrol pump'
     },
     'explorer': {
       'title': 'FREE CAR WASH',
       'offer': 'Free car wash at partner stations',
+      'description': 'Complete 10 different trips in Pune',
       'loc': 'WashKing / ShineAuto'
     },
     'safe_drv': {
       'title': 'FREE OIL CHECK',
       'offer': 'Free oil level & coolant check',
+      'description': 'Complete 3 trips with score 80+',
       'loc': 'Authorized centers'
+    },
+    'gold_score': {
+      'title': 'STARBUCKS 20% OFF',
+      'offer': 'Premium reward for 95+ safety score',
+      'description': 'Achieve a safety score of 95+ in a single trip',
+      'loc': 'Starbucks, Pavilion Mall',
+      'emoji': '☕'
+    },
+    'silver_score': {
+      'title': 'AMAZON ₹100 OFF',
+      'offer': 'Reward for 85+ safety score',
+      'description': 'Achieve a safety score of 85+ in a single trip',
+      'loc': 'Redeem Online',
+      'emoji': '🛒'
+    },
+    'welcome': {
+      'title': 'WELCOME REWARD',
+      'offer': '10% off on your next visit',
+      'description': 'Unlocked for joining ZeroPenalty!',
+      'loc': 'Partner Merchants',
+      'emoji': '🎁'
     },
   };
 
-  static Coupon generateCoupon(String badgeId) {
+  static Coupon generateCoupon(String badgeId,
+      {CouponStatus status = CouponStatus.locked}) {
     final data = couponData[badgeId];
     final now = DateTime.now();
     return Coupon(
@@ -176,12 +207,39 @@ class AchievementService {
       code: 'ZP-${Random().nextInt(9999).toString().padLeft(4, '0')}',
       title: data['title'],
       offer: data['offer'],
+      description:
+          data['description'] ?? 'Unlock this achievement to earn the reward',
       location: data['loc'],
       unlockedAt: now,
       expiresAt: now.add(const Duration(days: 30)),
-      status: CouponStatus.available,
+      status: status,
       badgeId: badgeId,
-      emoji: badges.firstWhere((b) => b.id == badgeId).emoji,
+      emoji: data['emoji'] ?? badges.firstWhere((b) => b.id == badgeId).emoji,
+    );
+  }
+
+  static Coupon generateQuickCoupon({
+    required String id,
+    required String title,
+    required String offer,
+    required String description,
+    required String code,
+    required String emoji,
+    CouponStatus status = CouponStatus.locked,
+  }) {
+    final now = DateTime.now();
+    return Coupon(
+      id: id,
+      code: code,
+      title: title,
+      offer: offer,
+      description: description,
+      location: 'ZeroPenalty Rewards',
+      unlockedAt: now,
+      expiresAt: now.add(const Duration(days: 30)),
+      status: status,
+      badgeId: 'performance',
+      emoji: emoji,
     );
   }
 }

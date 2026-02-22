@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/coupon.dart';
 import '../providers/profile_provider.dart';
@@ -15,6 +16,14 @@ class _CouponsScreenState extends State<CouponsScreen> {
   String _filter = 'available';
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ProfileProvider>().loadProfile();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.bg,
@@ -23,13 +32,20 @@ class _CouponsScreenState extends State<CouponsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => context.read<ProfileProvider>().loadProfile(),
+          ),
+        ],
       ),
       body: Consumer<ProfileProvider>(
         builder: (context, profileProvider, child) {
           final allCoupons = profileProvider.coupons;
           final filteredCoupons = allCoupons.where((c) {
             if (_filter == 'available')
-              return c.status == CouponStatus.available;
+              return c.status == CouponStatus.available ||
+                  c.status == CouponStatus.locked;
             if (_filter == 'used') return c.status == CouponStatus.used;
             return true;
           }).toList();
@@ -95,46 +111,79 @@ class _CouponsScreenState extends State<CouponsScreen> {
 
   Widget _buildCouponCard(
       BuildContext context, Coupon coupon, ProfileProvider provider) {
-    final isAvailable = coupon.status == CouponStatus.available;
+    final bool isAvailable = coupon.status == CouponStatus.available;
+    final bool isLocked = coupon.status == CouponStatus.locked;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      child: Stack(
-        children: [
-          Container(
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ColorFiltered(
+          colorFilter: isLocked
+              ? const ColorFilter.matrix([
+                  0.2126,
+                  0.7152,
+                  0.0722,
+                  0,
+                  0,
+                  0.2126,
+                  0.7152,
+                  0.0722,
+                  0,
+                  0,
+                  0.2126,
+                  0.7152,
+                  0.0722,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                ])
+              : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 20),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: context.cardBg,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                  color: isAvailable
-                      ? AppColors.primary.withOpacity(0.3)
-                      : context.borderColor),
-              boxShadow: [
-                if (isAvailable)
-                  BoxShadow(
-                      color: AppColors.primary.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4)),
-              ],
+                color: isLocked
+                    ? context.borderColor
+                    : AppColors.primary.withOpacity(0.3),
+              ),
+              boxShadow: isAvailable
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
+                    ]
+                  : null,
             ),
             child: Row(
               children: [
+                // Emoji Icon
                 Container(
-                  width: 60,
-                  height: 60,
+                  width: 50,
+                  height: 50,
                   decoration: BoxDecoration(
-                    color: isAvailable
-                        ? AppColors.primary.withOpacity(0.1)
-                        : context.surfaceBg,
+                    color: isLocked
+                        ? context.surfaceBg
+                        : AppColors.primary.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
-                    child: Text(coupon.emoji,
-                        style: const TextStyle(fontSize: 30)),
+                    child: Text(
+                      coupon.emoji,
+                      style: const TextStyle(fontSize: 24),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 15),
+                const SizedBox(width: 16),
+                // Details
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,27 +191,47 @@ class _CouponsScreenState extends State<CouponsScreen> {
                       Text(
                         coupon.title,
                         style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isAvailable
-                                ? context.textPrimary
-                                : context.textMuted),
+                          color: isLocked
+                              ? context.textMuted
+                              : context.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        coupon.offer,
+                        style: TextStyle(
+                          color: isLocked
+                              ? context.textMuted.withOpacity(0.6)
+                              : AppColors.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (isLocked)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4.0),
+                          child: Text(
+                            '🔒 ${coupon.description}',
+                            style: const TextStyle(
+                              color: AppColors.warning,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 4),
-                      Text(coupon.offer,
-                          style: TextStyle(
-                              fontSize: 13, color: context.textSecondary)),
-                      const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(Icons.location_on,
-                              size: 12, color: context.textMuted),
+                          Icon(Icons.location_on_outlined,
+                              color: context.textMuted, size: 12),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               coupon.location,
                               style: TextStyle(
-                                  fontSize: 11, color: context.textMuted),
+                                  color: context.textMuted, fontSize: 10),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -174,6 +243,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                 ),
                 if (isAvailable)
                   Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       ElevatedButton(
                         onPressed: () => _useCoupon(context, coupon, provider),
@@ -181,44 +251,65 @@ class _CouponsScreenState extends State<CouponsScreen> {
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 12),
-                          visualDensity: VisualDensity.compact,
+                          elevation: 0,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8)),
                         ),
-                        child: const Text('Use Now'),
+                        child: const Text('Use Now',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Exp in ${coupon.expiresAt.difference(DateTime.now()).inDays}d',
-                        style: const TextStyle(
-                            fontSize: 9, color: AppColors.danger),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.danger.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Exp: ${coupon.expiresAt.difference(DateTime.now()).inDays}d',
+                          style: const TextStyle(
+                              fontSize: 9,
+                              color: AppColors.danger,
+                              fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ],
                   )
                 else
-                  Text(
-                    coupon.status.name.toUpperCase(),
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: context.textMuted),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: context.surfaceBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      coupon.status.name.toUpperCase(),
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: context.textMuted,
+                          letterSpacing: 1),
+                    ),
                   ),
               ],
             ),
           ),
-          // Ticket notches
-          Positioned(
-            left: -8,
-            top: 40,
-            child: CircleAvatar(radius: 8, backgroundColor: context.bg),
-          ),
-          Positioned(
-            right: -8,
-            top: 40,
-            child: CircleAvatar(radius: 8, backgroundColor: context.bg),
-          ),
-        ],
-      ),
+        ),
+        // Ticket Notches
+        Positioned(
+          left: -8,
+          top: 40,
+          child: CircleAvatar(radius: 8, backgroundColor: context.bg),
+        ),
+        Positioned(
+          right: -8,
+          top: 40,
+          child: CircleAvatar(radius: 8, backgroundColor: context.bg),
+        ),
+      ],
     );
   }
 
@@ -264,17 +355,35 @@ class _CouponsScreenState extends State<CouponsScreen> {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: AppColors.primary),
               ),
-              child: Text(
-                coupon.code,
-                style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 4,
-                    color: AppColors.primary),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    coupon.code,
+                    style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 4,
+                        color: AppColors.primary),
+                  ),
+                  const SizedBox(width: 10),
+                  IconButton(
+                    icon: const Icon(Icons.copy,
+                        size: 20, color: AppColors.primary),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: coupon.code));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Code copied to clipboard!')),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 15),
-            Text('This reward will be marked as used.',
+            Text('Show this to the vendor OR copy code for online use.',
+                textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: context.textMuted)),
           ],
         ),
