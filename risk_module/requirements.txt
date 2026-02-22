@@ -1,3 +1,10 @@
 flask>=2.3.0
 geopy>=2.4.0
 requests>=2.31.0
+
+
+# here is the list of all the libraries that are used in the risk module of the project
+# 1. flask
+# 2. geopy
+# 3. requests
+    
