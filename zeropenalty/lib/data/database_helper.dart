@@ -16,7 +16,7 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'zeropenalty.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 4,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE trips (
@@ -49,6 +49,7 @@ class DatabaseHelper {
             code TEXT,
             title TEXT,
             offer TEXT,
+            description TEXT,
             location TEXT,
             unlocked_at TEXT,
             expires_at TEXT,
@@ -57,6 +58,39 @@ class DatabaseHelper {
             emoji TEXT
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS coupons (
+              id TEXT PRIMARY KEY,
+              code TEXT,
+              title TEXT,
+              offer TEXT,
+              description TEXT,
+              location TEXT,
+              unlocked_at TEXT,
+              expires_at TEXT,
+              status TEXT,
+              badge_id TEXT,
+              emoji TEXT
+            )
+          ''');
+        }
+        if (oldVersion < 3) {
+          // Force RE-SEED of coupons for roadmap
+          await db.execute('DELETE FROM coupons');
+        }
+        if (oldVersion < 4) {
+          // Add missing description column
+          try {
+            await db.execute('ALTER TABLE coupons ADD COLUMN description TEXT');
+          } catch (e) {
+            // Already exists or table missing
+          }
+          await db.execute(
+              'DELETE FROM coupons'); // Force re-seed with descriptions
+        }
       },
     );
   }
@@ -148,7 +182,8 @@ class DatabaseHelper {
 
   static Future<int> insertCoupon(Map<String, dynamic> couponMap) async {
     final db = await database;
-    return db.insert('coupons', couponMap);
+    return db.insert('coupons', couponMap,
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   static Future<List<Map<String, dynamic>>> getCoupons() async {

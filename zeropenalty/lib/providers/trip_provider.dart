@@ -14,12 +14,14 @@ import '../models/zone.dart';
 import '../data/database_helper.dart';
 import '../services/api_service.dart';
 import '../services/ml_api_service.dart';
+import '../services/route_service.dart';
 import '../utils/constants.dart';
 
 /// Manages active trip state
 class TripProvider extends ChangeNotifier {
   SensorService _sensorService =
       SensorService(useSimulation: AppConstants.useSimulation);
+  final RouteService _routeService = RouteService();
   final EventDetector _eventDetector = EventDetector();
   final ZoneManager _zoneManager = ZoneManager();
   final AlertManager _alertManager = AlertManager();
@@ -108,6 +110,14 @@ class TripProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Manually set the demo simulation speed (only works in simulation)
+  void setDemoSpeed(double speed) {
+    if (_isSimulatedTrip) {
+      _sensorService.setDemoSpeed(speed);
+      notifyListeners();
+    }
+  }
+
   /// Initialize TTS
   Future<void> _initTts() async {
     _tts = FlutterTts();
@@ -138,6 +148,23 @@ class TripProvider extends ChangeNotifier {
 
     // Start sensor stream (real or demo based on current mode)
     _sensorService = SensorService(useSimulation: _isDemoMode);
+
+    if (_isDemoMode) {
+      try {
+        final start = LatLng(18.53120, 73.86435); // AISSMS
+        final end = LatLng(18.51954, 73.85522); // Shaniwar Wada
+        final snappedPoints = await _routeService.getRoute(start, end);
+        if (snappedPoints.isNotEmpty) {
+          final waypoints =
+              snappedPoints.map((p) => [p.latitude, p.longitude]).toList();
+          _sensorService.updateWaypoints(waypoints);
+        }
+      } catch (e) {
+        debugPrint('Demo Route Fetch Failed: $e');
+        // Falls back to hardcoded 150-point set already in SensorService
+      }
+    }
+
     try {
       final stream = await _sensorService.startSensors();
       _isActive = true;

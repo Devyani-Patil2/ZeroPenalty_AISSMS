@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
+import 'package:latlong2/latlong.dart' as latlong;
 import 'package:provider/provider.dart';
 import '../providers/trip_provider.dart';
 import '../providers/history_provider.dart';
@@ -19,11 +19,15 @@ class LiveTripScreen extends StatefulWidget {
 }
 
 class _LiveTripScreenState extends State<LiveTripScreen> {
-  final MapController _mapController = MapController();
+  gmaps.GoogleMapController? _mapController;
   bool _followingUser = true;
   bool _isFullScreen = false;
   final RiskZoneService _zoneService = RiskZoneService();
   List<RiskZone> _allZones = [];
+
+  // Helper to convert latlong2.LatLng to gmaps.LatLng
+  gmaps.LatLng _toGmap(latlong.LatLng point) =>
+      gmaps.LatLng(point.latitude, point.longitude);
 
   @override
   void initState() {
@@ -42,9 +46,9 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
             builder: (context, trip, _) {
               // Auto-center map if following enabled
               if (_followingUser && trip.pathPoints.isNotEmpty) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _mapController.move(trip.pathPoints.last, 16.0);
-                });
+                _mapController?.animateCamera(
+                  gmaps.CameraUpdate.newLatLng(_toGmap(trip.pathPoints.last)),
+                );
               }
 
               return Stack(
@@ -60,6 +64,8 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
                                   children: [
                                     const SizedBox(height: 16),
                                     _buildSpeedometer(context, trip),
+                                    if (trip.isSimulatedTrip)
+                                      _buildSimControl(context, trip),
                                     const SizedBox(height: 16),
                                     _buildMapSection(context, trip),
                                     const SizedBox(height: 16),
@@ -245,10 +251,92 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
     );
   }
 
+  double _localSimSpeed = 25.0;
+  Widget _buildSimControl(BuildContext context, TripProvider trip) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.tune, color: AppColors.primary, size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                'DEMO CONTROL',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${_localSimSpeed.toInt()} km/h',
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 4,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+              activeTrackColor: AppColors.primary,
+              inactiveTrackColor: AppColors.primary.withOpacity(0.1),
+              thumbColor: AppColors.primary,
+            ),
+            child: Slider(
+              value: _localSimSpeed,
+              min: 5,
+              max: 100,
+              onChanged: (val) {
+                setState(() => _localSimSpeed = val);
+                trip.setDemoSpeed(val);
+              },
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _speedLabel('SAFE', AppColors.safe),
+              _speedLabel('FAST', AppColors.warning),
+              _speedLabel('EXTREME', AppColors.danger),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _speedLabel(String text, Color color) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: color.withOpacity(0.7),
+        fontSize: 10,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
   Widget _buildMapSection(BuildContext context, TripProvider trip) {
     final path = trip.pathPoints;
-    final currentPos =
-        path.isNotEmpty ? path.last : const LatLng(18.5204, 73.8567);
+    final lastPoint = path.isNotEmpty
+        ? _toGmap(path.last)
+        : const gmaps.LatLng(18.5204, 73.8567);
 
     return Container(
       height: _isFullScreen ? double.infinity : 300,
@@ -265,94 +353,55 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
             _isFullScreen ? BorderRadius.zero : BorderRadius.circular(24),
         child: Stack(
           children: [
-            FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: currentPos,
-                initialZoom: 16.0,
-                onPositionChanged: (pos, hasGesture) {
-                  if (hasGesture && _followingUser) {
-                    setState(() => _followingUser = false);
-                  }
-                },
+            gmaps.GoogleMap(
+              initialCameraPosition: gmaps.CameraPosition(
+                target: lastPoint,
+                zoom: 16.0,
               ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.zeropenalty',
+              onMapCreated: (controller) => _mapController = controller,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              onCameraMoveStarted: () {
+                if (_followingUser) setState(() => _followingUser = false);
+              },
+              circles: _allZones
+                  .map((z) => gmaps.Circle(
+                        circleId: gmaps.CircleId(z.id.toString()),
+                        center: gmaps.LatLng(z.latitude, z.longitude),
+                        radius: z.radius,
+                        fillColor:
+                            AppColors.zoneColor(z.riskLevel).withOpacity(0.3),
+                        strokeColor: AppColors.zoneColor(z.riskLevel),
+                        strokeWidth: 2,
+                      ))
+                  .toSet(),
+              polylines: {
+                gmaps.Polyline(
+                  polylineId: const gmaps.PolylineId('path'),
+                  points: path.map((p) => _toGmap(p)).toList(),
+                  color: AppColors.primary,
+                  width: 5,
                 ),
-                // Risk Zones Circles
-                CircleLayer(
-                  circles: _allZones
-                      .map((z) => CircleMarker(
-                            point: LatLng(z.latitude, z.longitude),
-                            radius: z.radius,
-                            useRadiusInMeter: true,
-                            color: AppColors.zoneColor(z.riskLevel)
-                                .withOpacity(0.3),
-                            borderColor: AppColors.zoneColor(z.riskLevel),
-                            borderStrokeWidth: 2,
-                          ))
-                      .toList(),
-                ),
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: path,
-                      strokeWidth: 5,
-                      color: AppColors.primary,
-                    ),
-                  ],
-                ),
-                MarkerLayer(
-                  markers: [
-                    // Zone Labels
-                    ..._allZones.map((z) => Marker(
-                          point: LatLng(z.latitude, z.longitude),
-                          width: 100,
-                          height: 30,
-                          child: IgnorePointer(
-                            child: Text(
-                              z.name,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: AppColors.zoneColor(z.riskLevel),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                shadows: const [
-                                  Shadow(blurRadius: 2, color: Colors.black)
-                                ],
-                              ),
-                            ),
-                          ),
-                        )),
-                    if (path.isNotEmpty)
-                      Marker(
-                        point: path.first,
-                        width: 20,
-                        height: 20,
-                        child: const Icon(Icons.location_on,
-                            color: Colors.green, size: 20),
-                      ),
-                    Marker(
-                      point: currentPos,
-                      width: 25,
-                      height: 25,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.3),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.navigation,
-                              color: Colors.blue, size: 16),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              },
+              markers: {
+                // Risk Zone Markers (Invisible but can add info windows if needed)
+                ..._allZones.map((z) => gmaps.Marker(
+                      markerId: gmaps.MarkerId('zone_${z.id}'),
+                      position: gmaps.LatLng(z.latitude, z.longitude),
+                      alpha: 0.8,
+                      infoWindow: gmaps.InfoWindow(title: z.name),
+                    )),
+                // Driver Marker
+                if (path.isNotEmpty)
+                  gmaps.Marker(
+                    markerId: const gmaps.MarkerId('driver'),
+                    position: lastPoint,
+                    icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                        gmaps.BitmapDescriptor.hueAzure),
+                    rotation: 0, // Could calculate rotation based on path
+                  ),
+              },
             ),
             // Map controls
             Positioned(
@@ -377,7 +426,9 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
                     onPressed: () {
                       setState(() => _followingUser = true);
                       if (path.isNotEmpty) {
-                        _mapController.move(path.last, 16.0);
+                        _mapController?.animateCamera(
+                          gmaps.CameraUpdate.newLatLng(_toGmap(path.last)),
+                        );
                       }
                     },
                     backgroundColor:
@@ -455,8 +506,7 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
           _miniStat(
               context, 'Evts', '${trip.events.length}', Icons.warning_amber),
           const SizedBox(width: 8),
-          _miniStat(
-              context, 'Score', trip.liveScore.toStringAsFixed(0), null,
+          _miniStat(context, 'Score', trip.liveScore.toStringAsFixed(0), null,
               color: AppColors.scoreColor(trip.liveScore),
               customLogo: const AppLogo(size: 14)),
         ],
@@ -477,7 +527,8 @@ class _LiveTripScreenState extends State<LiveTripScreen> {
         ),
         child: Column(
           children: [
-            customLogo ?? Icon(icon, color: color ?? context.textMuted, size: 14),
+            customLogo ??
+                Icon(icon, color: color ?? context.textMuted, size: 14),
             const SizedBox(height: 4),
             Text(
               value,
